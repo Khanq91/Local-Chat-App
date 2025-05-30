@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nhan_tin_noi_bo/features/auth/screens/SignIn.dart';
+import 'package:nhan_tin_noi_bo/features/auth/screens/WelcomeScreen.dart';
 
 import '../../data/model/assets.dart';
 
@@ -35,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (BuildContext context) => LoginScreen(),
+        builder: (BuildContext context) => WelcomeScreen(),
       ),
     );
   }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nhan_tin_noi_bo/data/realm/realm_services/realm.dart';
+import 'package:nhan_tin_noi_bo/features/auth/screens/RegisterScreen.dart';
+import 'package:nhan_tin_noi_bo/features/auth/screens/SignIn.dart';
+import 'package:nhan_tin_noi_bo/features/auth/screens/WelcomeScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/HomeScreen.dart';
 import 'package:nhan_tin_noi_bo/presentation/splash/SplashScreen.dart';
 import 'package:nhan_tin_noi_bo/features/auth/screens/SignUp.dart';

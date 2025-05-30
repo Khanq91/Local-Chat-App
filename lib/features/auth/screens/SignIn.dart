@@ -144,7 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (BuildContext context) => Home_Screen(currentUser: currentUser),
-                          // builder: (BuildContext context) => SearchGrouporfriendScreen(),
                         ),
                       );
                     },
