@@ -7,6 +7,7 @@ import 'package:nhan_tin_noi_bo/features/auth/screens/SignUp.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/SearchScreen.dart';
 import 'package:realm/realm.dart';
 
+import '../../../core/utils/connection.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/realm/realm_services/realm.dart';
 
@@ -59,6 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -141,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (BuildContext context) => Home_Screen(currentUser: currentUser,),
+                          builder: (BuildContext context) => Home_Screen(currentUser: currentUser),
                           // builder: (BuildContext context) => SearchGrouporfriendScreen(),
                         ),
                       );

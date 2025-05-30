@@ -25,13 +25,15 @@ class Individualpage extends StatefulWidget {
     required this.chatModel,
     required this.sourchat,
     required this.currentUserId,
-    required this.receiverId
+    required this.receiverId,
+    required this.socket,
   });
 
   final ChatModel chatModel;
   final ChatModel sourchat;
   final ObjectId  currentUserId;
   final ObjectId  receiverId;
+  final IO.Socket socket;
 
   @override
   State<Individualpage> createState() => _IndividualpageState();
@@ -64,7 +66,7 @@ class _IndividualpageState extends State<Individualpage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    connect();
+    widget.socket.on("message", _handleIncomingMessage);
     _controller.addListener(() {
       setState(() {
         CheckValueInput = _controller.text.trim().isNotEmpty;
@@ -73,16 +75,10 @@ class _IndividualpageState extends State<Individualpage> {
   }
   @override
   void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    _scrollController.dispose();
-
-    socket?.off("message");
-    socket?.disconnect();
-    socket?.dispose();
-
+    widget.socket.off("message", _handleIncomingMessage);
     super.dispose();
   }
+
 
   void _showMessageOptionsDialog(BuildContext context, MessageModel message) {
     showModalBottomSheet(
@@ -126,23 +122,48 @@ class _IndividualpageState extends State<Individualpage> {
     );
   }
 
-  void connect() {
-    socket = IO.io("http://${AppConfig.baseUrl}:5000", <String, dynamic>{
-      "transports": ["websocket"],
-      "autoConnect": true,
-    });
-    socket?.connect();
-    socket?.onConnect((data) {
-      socket?.emit("signin", widget.currentUserId.toString());
-      print("Connected");
-      socket?.on("message", (msg) {
-        print(msg);
-        setMessage("destination", msg["message"], msg["path"]);
-        ControllerNewMessage();
-      });
-    });
-    print(socket?.connected);
+  // void connect() {
+  //   socket = IO.io("http://${AppConfig.baseUrl}:5000", <String, dynamic>{
+  //     "transports": ["websocket"],
+  //     "autoConnect": true,
+  //   });
+  //   socket?.connect();
+  //   socket?.onConnect((data) {
+  //     socket?.emit("signin", widget.currentUserId.toString());
+  //     print("Connected");
+  //     // socket?.on("message", (msg) {
+  //     //   print(msg);
+  //     //   // setMessage("destination", msg["message"], msg["path"]);
+  //     //   setMessage(msg["sourceId"], msg["message"], msg["path"]);
+  //     //   ControllerNewMessage();
+  //     // });
+  //     socket?.on("message", (msg) {
+  //       final isMe = msg["sourceId"] == widget.currentUserId.toString();
+  //
+  //       setMessage(
+  //         isMe ? "source" : "destination",
+  //         msg["message"],
+  //         msg["path"],
+  //       );
+  //
+  //       ControllerNewMessage();
+  //     });
+  //   });
+  //   print(socket?.connected);
+  // }
+
+  void _handleIncomingMessage(dynamic msg) {
+    bool isMe = msg["senderId"] == widget.currentUserId.toString();
+
+    setMessage(
+      isMe ? "source" : "destination",
+      msg["message"],
+      msg["path"],
+    );
+
+    ControllerNewMessage();
   }
+
 
   void sendMessage(String message, ObjectId sourceId, ObjectId targetId, String path) {
     if (socket != null && socket!.connected) {
@@ -158,7 +179,6 @@ class _IndividualpageState extends State<Individualpage> {
       print("Socket not connected!");
     }
   }
-
 
   void setMessage(String type, String message, String path) {
     MessageModel messageModel = MessageModel(
@@ -334,52 +354,84 @@ class _IndividualpageState extends State<Individualpage> {
                     return Container(height: 70);
                   }
                   //TODO: Vừa sửa lại 1 ít để nhấn vô hiện menu ghim
-                  if (messages[index].type == "source") {
-                    if (messages[index].path.isNotEmpty) {
-                      return GestureDetector(
-                        onLongPress:
-                            () => _showMessageOptionsDialog(
-                              context,
-                              messages[index],
-                            ),
-                        child: OwnImageCard(
-                          path: [messages[index].path],
-                          time: messages[index].time,
-                        ),
-                      );
-                    } else {
-                      return GestureDetector(
-                        onLongPress:
-                            () => _showMessageOptionsDialog(
-                              context,
-                              messages[index],
-                            ),
-                        child: OwnMessageCard(
-                          message: messages[index].message,
-                          time: messages[index].time,
-                        ),
-                      );
-                    }
+                  // if (messages[index].type == "source") {
+                  //   if (messages[index].path.isNotEmpty) {
+                  //     return GestureDetector(
+                  //       onLongPress:
+                  //           () => _showMessageOptionsDialog(
+                  //             context,
+                  //             messages[index],
+                  //           ),
+                  //       child: OwnImageCard(
+                  //         path: [messages[index].path],
+                  //         time: messages[index].time,
+                  //       ),
+                  //     );
+                  //   } else {
+                  //     return GestureDetector(
+                  //       onLongPress:
+                  //           () => _showMessageOptionsDialog(
+                  //             context,
+                  //             messages[index],
+                  //           ),
+                  //       child: OwnMessageCard(
+                  //         message: messages[index].message,
+                  //         time: messages[index].time,
+                  //       ),
+                  //     );
+                  //   }
+                  // } else {
+                  //   if (messages[index].path.isNotEmpty) {
+                  //     return ReplyImageCard(
+                  //       path: [messages[index].path],
+                  //       time: messages[index].time,
+                  //     );
+                  //   } else {
+                  //     return GestureDetector(
+                  //       onLongPress:
+                  //           () => _showMessageOptionsDialog(
+                  //             context,
+                  //             messages[index],
+                  //           ),
+                  //       child: ReplyCard(
+                  //         message: messages[index].message,
+                  //         time: messages[index].time,
+                  //       ),
+                  //     );
+                  //   }
+                  // }
+                  final message = messages[index];
+                  final isSource = message.type == "source";
+                  final hasImage = message.path.isNotEmpty;
+
+                  Widget messageWidget;
+
+                  if (isSource) {
+                    messageWidget = hasImage
+                        ? OwnImageCard(
+                      path: [message.path],
+                      time: message.time,
+                    )
+                        : OwnMessageCard(
+                      message: message.message,
+                      time: message.time,
+                    );
                   } else {
-                    if (messages[index].path.isNotEmpty) {
-                      return ReplyImageCard(
-                        path: [messages[index].path],
-                        time: messages[index].time,
-                      );
-                    } else {
-                      return GestureDetector(
-                        onLongPress:
-                            () => _showMessageOptionsDialog(
-                              context,
-                              messages[index],
-                            ),
-                        child: ReplyCard(
-                          message: messages[index].message,
-                          time: messages[index].time,
-                        ),
-                      );
-                    }
+                    messageWidget = hasImage
+                        ? ReplyImageCard(
+                      path: [message.path],
+                      time: message.time,
+                    )
+                        : ReplyCard(
+                      message: message.message,
+                      time: message.time,
+                    );
                   }
+
+                  return GestureDetector(
+                    onLongPress: () => _showMessageOptionsDialog(context, message),
+                    child: messageWidget,
+                  );
                 },
               ),
             ),

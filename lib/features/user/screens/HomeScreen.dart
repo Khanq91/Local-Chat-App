@@ -3,6 +3,7 @@ import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/SearchScreen.dart';
 import 'package:realm/realm.dart';
 
+import '../../../core/utils/connection.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/model/chatmodel.dart';
 import '../../../data/realm/realm_models/models.dart';
@@ -10,10 +11,11 @@ import '../../../data/realm/realm_services/realm.dart';
 import '../../chat/screens/CreateGroupPages.dart';
 import '../../chat/screens/ChatPages.dart';
 import 'FriendsListScreen.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class Home_Screen extends StatefulWidget {
   final NguoiDung currentUser;
-  const Home_Screen({super.key, required this.currentUser,});
+  const Home_Screen({super.key, required this.currentUser});
 
   @override
   State<Home_Screen> createState() => _DsTinnhanState();
@@ -56,10 +58,16 @@ class _DsTinnhanState extends State<Home_Screen> {
   }
   @override
   Widget build(BuildContext context) {
+    final socketService = SocketService();
+    final socketConnect = socketService.connect(widget.currentUser.maNguoiDung);
+
     final ObjectId currentUserId = widget.currentUser.maNguoiDung;
     final List<Widget> _screens = [
-      Chatpages(chats: chats,
-          currentUserId:currentUserId),
+      Chatpages(
+        chats: chats,
+        currentUserId:currentUserId,
+        socket: socketConnect,
+      ),
       FriendsListScreen(currentUser: widget.currentUser,)
     ];
     return Scaffold(

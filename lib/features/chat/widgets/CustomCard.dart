@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:nhan_tin_noi_bo/core/utils/connection.dart';
 import 'package:nhan_tin_noi_bo/features/chat/screens/IndividualPage.dart';
 import 'package:realm/realm.dart';
 import '../../../data/model/chatmodel.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class Customcard extends StatelessWidget {
-  const Customcard({Key? key, required this.chatModel, required this.sourchat,required this.currentUserId,required this.receiverId})
+  const Customcard({Key? key, required this.chatModel, required this.sourchat,required this.currentUserId,required this.receiverId, required this.socket})
     : super(key: key);
   final ChatModel chatModel;
   final ChatModel sourchat;
   final ObjectId  currentUserId;
   final ObjectId  receiverId;
+  final IO.Socket socket;
   @override
   Widget build(BuildContext context) {
+
   print(currentUserId);
     return InkWell(
       onTap: () {
@@ -20,7 +24,7 @@ class Customcard extends StatelessWidget {
           MaterialPageRoute(
             builder:
                 (context) =>
-                    Individualpage(chatModel: chatModel, sourchat: sourchat, currentUserId: currentUserId, receiverId: receiverId),
+                    Individualpage(chatModel: chatModel, sourchat: sourchat, currentUserId: currentUserId, receiverId: receiverId, socket: socket,),
           ),
         );
       },
