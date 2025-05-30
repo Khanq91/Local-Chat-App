@@ -1,23 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:path/path.dart' as path;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:nhan_tin_noi_bo/features/chat/widgets/OwnMessageCard.dart';
+import 'package:nhan_tin_noi_bo/features/chat/widgets/Chats/OwnMessageCard.dart';
 import 'package:nhan_tin_noi_bo/features/settings/screens/SettingsOwn.dart';
 import 'package:nhan_tin_noi_bo/config/IPconfig.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:realm/realm.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../../../data/model/Message/FileModel.dart';
 import '../../../data/model/Message/MessageModel.dart';
 import '../../../data/model/chatmodel.dart';
+import '../widgets/Files/OwnFileCard.dart';
+import '../widgets/Files/ReplyFileCard.dart';
 import '../widgets/ImagePicker/ImagePickerSheet.dart';
 import '../widgets/ImagePicker/OwnImageCard .dart';
 import '../widgets/ImagePicker/ReplyImageCard.dart';
-import '../widgets/ReplyCard.dart';
+import '../widgets/Chats/ReplyCard.dart';
 
 class Individualpage extends StatefulWidget {
   const Individualpage({
@@ -34,7 +37,6 @@ class Individualpage extends StatefulWidget {
   final ObjectId  currentUserId;
   final ObjectId  receiverId;
   final IO.Socket socket;
-
   @override
   State<Individualpage> createState() => _IndividualpageState();
 }
@@ -55,12 +57,14 @@ class _IndividualpageState extends State<Individualpage> {
   double bottomInset = 0;
   double bottomSheetHeight = 0.3;
 
+  String selectedFilePath='';
+
   List<XFile> ImagePath = [];
   List<AssetEntity> allImages = [];
   List<MessageModel> messages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
+  File? Docfile;
 
-  // IO.Socket? socket;
 
   @override
   void initState() {
@@ -164,7 +168,6 @@ class _IndividualpageState extends State<Individualpage> {
     ControllerNewMessage();
   }
 
-
   void sendMessage(String message, ObjectId sourceId, ObjectId targetId, String path) {
     if (widget.socket != null && widget.socket!.connected) {
       setMessage("source", message, path);
@@ -193,19 +196,19 @@ class _IndividualpageState extends State<Individualpage> {
     });
   }
 
-
-  Future<List<String>> sendImageSend(
-    List<AssetEntity> selectedImagesFromSheet,
-  ) async {
+  // Gửi ảnh lên sever
+  Future<List<String>> sendImageSend(List<AssetEntity> selectedImagesFromSheet,) async {
     var request = http.MultipartRequest(
       "POST",
       Uri.parse("http://${AppConfig.baseUrl}:5000/routes/addimage"),
     );
 
-    for (AssetEntity asset in selectedImagesFromSheet) {
-      File? file = await asset.file;
-      if (file != null) {
-        request.files.add(await http.MultipartFile.fromPath("img", file.path));
+    if(selectedImagesFromSheet.isNotEmpty && selectedImagesFromSheet!=null){
+      for (AssetEntity asset in selectedImagesFromSheet) {
+        File? file = await asset.file;
+        if (file != null) {
+          request.files.add(await http.MultipartFile.fromPath("img", file.path));
+        }
       }
     }
 
@@ -222,6 +225,37 @@ class _IndividualpageState extends State<Individualpage> {
       return [];
     }
   }
+  Future<List<String>> sendFileSend(File file) async {
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("http://${AppConfig.baseUrl}:5000/routes/addimage"),
+    );
+
+    // Đặt tên file tùy ý, ví dụ giữ đuôi cũ
+    String newFileName = "upload_${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}";
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        "img",
+        file.path,
+        filename: newFileName,
+      ),
+    );
+
+    request.headers.addAll({"Content-type": "multipart/form-data"});
+
+    http.StreamedResponse response = await request.send();
+    var httpResponse = await http.Response.fromStream(response);
+    var data = json.decode(httpResponse.body);
+
+    if (response.statusCode == 200 && data['path'] != null) {
+      return List<String>.from(data['path']);
+    } else {
+      print("Upload thất bại: ${response.statusCode}, body: ${httpResponse.body}");
+      return [];
+    }
+  }
+
 
   // Load Ảnh
   Future<void> LoadAllImages() async {
@@ -248,21 +282,37 @@ class _IndividualpageState extends State<Individualpage> {
     }
   }
 
-  void pickImageFromGallery() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  void pickAnyFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+    );
+    if (result != null && result.files.isNotEmpty) {
+      PlatformFile file = result.files.first;
 
-    if (image != null) {
-      setState(() {
-        selectedFileName = image.name;
-        ImagePath = [image];
-        IsLoadFiles = true;
-      });
+      if (file.path != null) {
+        File selectedFile = File(file.path!);
 
-      print('Đường dẫn ảnh: ${image.path}');
+        List<String> uploadedPaths = await sendFileSend(selectedFile);
+
+        if (uploadedPaths.isNotEmpty) {
+          String serverPath = uploadedPaths.first;
+          sendMessage(
+            "", // nội dung text có thể để rỗng
+            widget.currentUserId,
+            widget.receiverId,
+            serverPath, // path của file trên server
+          );
+        }
+      }
     } else {
-      print('Không chọn ảnh nào');
+      print('Không chọn file nào');
     }
+  }
+
+  String formatBytes(int bytes) {
+    if (bytes < 1024) return "$bytes B";
+    else if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(2)} KB";
+    else return "${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB";
   }
 
   @override
@@ -402,30 +452,43 @@ class _IndividualpageState extends State<Individualpage> {
                   // }
                   final message = messages[index];
                   final isSource = message.type == "source";
-                  final hasImage = message.path.isNotEmpty;
-
+                  final String path = message.path;
+                  final bool hasImage = path.endsWith(".jpg") ||
+                      path.endsWith(".png") ||
+                      path.endsWith(".jpeg") ||
+                      path.endsWith(".gif");
+                  final bool hasFile = !hasImage && path.isNotEmpty;
                   Widget messageWidget;
 
                   if (isSource) {
-                    messageWidget = hasImage
-                        ? OwnImageCard(
-                      path: [message.path],
-                      time: message.time,
-                    )
-                        : OwnMessageCard(
-                      message: message.message,
-                      time: message.time,
-                    );
+                    if (hasImage) {
+                      messageWidget = OwnImageCard(
+                        path: [message.path],
+                        time: message.time,
+                      );
+                    } else if (hasFile) {
+                      messageWidget = OwnFileCard(fileName:message.path,time: message.time,);
+                    } else {
+                      messageWidget = OwnMessageCard(
+                        message: message.message,
+                        time: message.time,
+                      );
+                    }
                   } else {
-                    messageWidget = hasImage
-                        ? ReplyImageCard(
-                      path: [message.path],
-                      time: message.time,
-                    )
-                        : ReplyCard(
-                      message: message.message,
-                      time: message.time,
-                    );
+                    if (hasImage) {
+                      messageWidget = ReplyImageCard(
+                        path: [message.path],
+                        time: message.time,
+                      );
+                    } else if (hasFile) {
+                        messageWidget = Replyfilecard(fileName:message.path,time: message.time,);
+
+                    } else {
+                      messageWidget = ReplyCard(
+                        message: message.message,
+                        time: message.time,
+                      );
+                    }
                   }
 
                   return GestureDetector(
@@ -434,6 +497,20 @@ class _IndividualpageState extends State<Individualpage> {
                   );
                 },
               ),
+            // child: ListView(
+            //   children: [
+            //     OwnFileCard(
+            //       fileName: "tailieu.ppt",
+            //       fileSize: "1.2 MB",
+            //       time: "9:21",
+            //     ),
+            //     ReplyFilecard(
+            //       fileName: "tailieu.ppt",
+            //       fileSize: "1.2 MB",
+            //       time: "9:21",
+            //     ),
+            //   ],
+            // ),
             ),
             // Thanh nhập tin nhắn
             AnimatedContainer(
@@ -502,7 +579,7 @@ class _IndividualpageState extends State<Individualpage> {
                       onPressed: () async {
                         if (selectedImagesFromSheet.isNotEmpty) {
                           List<String> serverPaths = await sendImageSend(
-                            selectedImagesFromSheet,
+                            selectedImagesFromSheet
                           );
                           for (String serverPath in serverPaths) {
                             sendMessage(
@@ -551,7 +628,7 @@ class _IndividualpageState extends State<Individualpage> {
                           IsLoadFiles = !IsLoadFiles;
                           _focusNode.unfocus();
                         });
-                        pickImageFromGallery();
+                        pickAnyFile();
                       },
                     ),
                     IconButton(
