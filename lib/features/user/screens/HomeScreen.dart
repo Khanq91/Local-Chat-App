@@ -24,12 +24,20 @@ class Home_Screen extends StatefulWidget {
 class _DsTinnhanState extends State<Home_Screen> {
   int _currentIndex = 0;
   List<ChatModel> chats = [];
+  bool _isSocketConnected = false;
+  late IO.Socket socketConnect;
+
   @override
   void initState() {
     super.initState();
 
+
     final ObjectId currentUserId = widget.currentUser.maNguoiDung;
+
+    final socketService = SocketService();
     final Realm realm = RealmService().realm;
+
+    socketConnect = socketService.connect(currentUserId);
 
     var danhSachKetBan = realm.all<KetBan>().where((ketBan) =>
     ketBan.trangThai == 'accepted' &&
@@ -54,14 +62,37 @@ class _DsTinnhanState extends State<Home_Screen> {
         id: nguoiDung.maNguoiDung, // Có thể lấy id phù hợp nếu cần
       );
     }).toList();
+
+    socketConnect.onConnect((_) {
+      print("✅ Socket connected");
+      if (mounted) {
+        setState(() {
+          _isSocketConnected = true;
+        });
+      }
+    });
+
+    socketConnect.onDisconnect((_) {
+      print("❌ Socket disconnected");
+      if (mounted) {
+        setState(() {
+          _isSocketConnected = false;
+        });
+      }
+    });
+
     setState(() {});
   }
   @override
   Widget build(BuildContext context) {
-    final socketService = SocketService();
-    final socketConnect = socketService.connect(widget.currentUser.maNguoiDung);
-
     final ObjectId currentUserId = widget.currentUser.maNguoiDung;
+
+    if (!_isSocketConnected) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final List<Widget> _screens = [
       Chatpages(
         chats: chats,
@@ -70,6 +101,7 @@ class _DsTinnhanState extends State<Home_Screen> {
       ),
       FriendsListScreen(currentUser: widget.currentUser,)
     ];
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.appbarBG,
@@ -133,7 +165,10 @@ class _DsTinnhanState extends State<Home_Screen> {
           )
         ],
       ),
-      body: _screens[_currentIndex],
+      // body: _screens[_currentIndex],
+      body: !_isSocketConnected
+          ? const Center(child: CircularProgressIndicator())
+          : _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {

@@ -60,7 +60,7 @@ class _IndividualpageState extends State<Individualpage> {
   List<MessageModel> messages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
 
-  IO.Socket? socket;
+  // IO.Socket? socket;
 
   @override
   void initState() {
@@ -166,9 +166,9 @@ class _IndividualpageState extends State<Individualpage> {
 
 
   void sendMessage(String message, ObjectId sourceId, ObjectId targetId, String path) {
-    if (socket != null && socket!.connected) {
+    if (widget.socket != null && widget.socket!.connected) {
       setMessage("source", message, path);
-      socket!.emit("message", {
+      widget.socket!.emit("message", {
         "message": message,
         "sourceId": sourceId.toString(),
         "targetId": targetId.toString(),
