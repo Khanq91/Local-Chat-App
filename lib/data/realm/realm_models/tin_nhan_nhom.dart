@@ -7,9 +7,10 @@ abstract class _TinNhanNhom {
   late _NhomChat? nhom;
   late _NguoiDung? nguoiGui;
   late String noiDung;
-  late String kieuTinNhan;
+  late String kieuTinNhan;  //text or image
   late bool ghim = false;
   late DateTime thoiGianGui;
+  late String duongDanAnh;  //Nếu kiểu tin nhắn là image thì đây là đường dẫn của ảnh
 
   @Backlink(#tinNhan)
   late Iterable<_TepDinhKemNhom> tepDinhKem;

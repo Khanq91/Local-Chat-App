@@ -15,8 +15,13 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../../../data/model/Message/FileModel.dart';
 import '../../../data/model/Message/MessageModel.dart';
 import '../../../data/model/chatmodel.dart';
+<<<<<<< HEAD
 import '../widgets/Files/OwnFileCard.dart';
 import '../widgets/Files/ReplyFileCard.dart';
+=======
+import '../../../data/realm/realm_models/models.dart';
+import '../../../data/realm/realm_services/realm.dart';
+>>>>>>> 3189c2f0b7fb9a1673708e7ec42f144e7045c35b
 import '../widgets/ImagePicker/ImagePickerSheet.dart';
 import '../widgets/ImagePicker/OwnImageCard .dart';
 import '../widgets/ImagePicker/ReplyImageCard.dart';
@@ -63,19 +68,33 @@ class _IndividualpageState extends State<Individualpage> {
   List<AssetEntity> allImages = [];
   List<MessageModel> messages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
+<<<<<<< HEAD
   File? Docfile;
 
+=======
+  late RealmResults<TinNhanCaNhan> results;
+  final realm = RealmService().realm;
+>>>>>>> 3189c2f0b7fb9a1673708e7ec42f144e7045c35b
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     widget.socket.on("message", _handleIncomingMessage);
+    final NguoiDung? nguoiGui = realm.find<NguoiDung>(widget.currentUserId);
+    final NguoiDung? nguoiNhan = realm.find<NguoiDung>(widget.receiverId);
+
+    results = realm.query<TinNhanCaNhan>(
+        '((nguoiGui == \$0 AND nguoiNhan == \$1) OR (nguoiGui == \$1 AND nguoiNhan == \$0)) SORT(thoiGianGui ASC)',
+        [nguoiGui, nguoiNhan]
+    );
+
     _controller.addListener(() {
       setState(() {
         CheckValueInput = _controller.text.trim().isNotEmpty;
       });
     });
+
   }
   @override
   void dispose() {
@@ -164,7 +183,7 @@ class _IndividualpageState extends State<Individualpage> {
       msg["message"],
       msg["path"],
     );
-
+    saveMessageToDB(msg);
     ControllerNewMessage();
   }
 
@@ -196,8 +215,43 @@ class _IndividualpageState extends State<Individualpage> {
     });
   }
 
+<<<<<<< HEAD
   // Gửi ảnh lên sever
   Future<List<String>> sendImageSend(List<AssetEntity> selectedImagesFromSheet,) async {
+=======
+  void saveMessageToDB(Map<String, dynamic> data) {
+
+    final NguoiDung? nguoiGui = realm.find<NguoiDung>(ObjectId.fromHexString(data["sourceId"]));
+    final NguoiDung? nguoiNhan = realm.find<NguoiDung>(ObjectId.fromHexString(data["targetId"]));
+
+    if (nguoiGui == null || nguoiNhan == null) {
+      print("❌ Không tìm thấy người gửi hoặc người nhận.");
+      return;
+    }
+
+    realm.write(() {
+      final tinNhan = TinNhanCaNhan(
+          ObjectId(),
+          data["message"],
+          "text",
+          DateTime.now(),
+          ''
+      );
+      tinNhan.nguoiGui = nguoiGui;
+      tinNhan.nguoiNhan = nguoiNhan;
+      tinNhan.ghim = false;
+      tinNhan.thoiGianGui = DateTime.now();
+
+      realm.add(tinNhan, update: true);
+    });
+
+    print("✅ Tin nhắn [message: ${data["message"]}] [id: ${data["sourceId"].toString()} to id: ${data["sourceId"].toString()}] đã lưu vào Realm");
+  }
+
+  Future<List<String>> sendImageSend(
+    List<AssetEntity> selectedImagesFromSheet,
+  ) async {
+>>>>>>> 3189c2f0b7fb9a1673708e7ec42f144e7045c35b
     var request = http.MultipartRequest(
       "POST",
       Uri.parse("http://${AppConfig.baseUrl}:5000/routes/addimage"),
