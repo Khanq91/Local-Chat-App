@@ -8,6 +8,9 @@ abstract class _KetBan {
   late _NguoiDung? nguoiGui;
   late _NguoiDung? nguoiNhan;
 
+  late ObjectId maNguoiGui;
+  late ObjectId maNguoiNhan;
+
   late String trangThai; // 'pending', 'accepted', 'rejected'
   late DateTime ngayTao;
 }

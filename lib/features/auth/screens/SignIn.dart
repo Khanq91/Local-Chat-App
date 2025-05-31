@@ -12,8 +12,6 @@ import '../../../data/model/assets.dart';
 import '../../../data/realm/realm_services/realm.dart';
 
 class LoginScreen extends StatefulWidget {
-
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -24,8 +22,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final realm = RealmService().realm;
   late final NguoiDung currentUser;
 
-  void createUser(String tenDangNhap, String matKhau, String hoTen, bool trangThai, String vaiTro) {
-    final newUser = NguoiDung(ObjectId(), tenDangNhap, matKhau, trangThai, vaiTro, DateTime.now());
+  void createUser(
+    String tenDangNhap,
+    String matKhau,
+    String hoTen,
+    bool trangThai,
+    String vaiTro,
+  ) {
+    final newUser = NguoiDung(
+      ObjectId(),
+      tenDangNhap,
+      matKhau,
+      trangThai,
+      vaiTro,
+      DateTime.now(),
+    );
     RealmService().add<NguoiDung>(newUser);
   }
 
@@ -36,19 +47,42 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-
   @override
   void initState() {
     super.initState();
     RealmService realmService = RealmService();
     clearAllRealmData(realm);
 
-    final nguoiGui = NguoiDung(ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"), '1', '1', true, 'admin', DateTime.now(), hoTen: 'khanghah');
+    final nguoiGui = NguoiDung(
+      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"),
+      '1',
+      '1',
+      true,
+      'admin',
+      DateTime.now(),
+      hoTen: 'khanghah',
+    );
     RealmService().add<NguoiDung>(nguoiGui);
-    final nguoiNhan = NguoiDung(ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"), '2', '2', true, 'admin', DateTime.now(), hoTen: 'khangheh');
+    final nguoiNhan = NguoiDung(
+      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"),
+      '2',
+      '2',
+      true,
+      'admin',
+      DateTime.now(),
+      hoTen: 'khangheh',
+    );
     RealmService().add<NguoiDung>(nguoiNhan);
 
-    final moiKetBan = KetBan(ObjectId(), 'accepted', DateTime.now(), nguoiGui: nguoiGui, nguoiNhan: nguoiNhan);
+    final moiKetBan = KetBan(
+      ObjectId(),
+      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"),
+      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"),
+      'accepted',
+      DateTime.now(),
+      nguoiGui: nguoiGui,
+      nguoiNhan: nguoiNhan,
+    );
     RealmService().add<KetBan>(moiKetBan);
 
     var nguoiDung = realmService.realm.all<NguoiDung>();
@@ -60,7 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -72,11 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Spacer(),
 
                 //Tên app
-                Image.asset(
-                  AppImages.logoPath,
-                  height: 70,
-                  width: 200,
-                ),
+                Image.asset(AppImages.logoPath, height: 70, width: 200),
                 SizedBox(height: 20),
                 //Trường nhập liệu
                 TextField(
@@ -119,23 +148,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         );
                         return;
                       }
-                      final user = realm.all<NguoiDung>().query("tenDangNhap == \$0", [tk]).firstOrNull;
+                      final user =
+                          realm.all<NguoiDung>().query("tenDangNhap == \$0", [
+                            tk,
+                          ]).firstOrNull;
 
                       if (user == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Tài khoản không tồn tại"),
-                          ),
+                          SnackBar(content: Text("Tài khoản không tồn tại")),
                         );
                         return;
                       }
 
                       if (user.matKhau != mk) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Sai mật khẩu"),
-                          ),
-                        );
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text("Sai mật khẩu")));
                         return;
                       }
 
@@ -143,7 +171,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (BuildContext context) => Home_Screen(currentUser: currentUser),
+                          builder:
+                              (BuildContext context) =>
+                                  Home_Screen(currentUser: currentUser),
                         ),
                       );
                     },
@@ -156,10 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: Text(
                       "Đăng nhập",
-                      style: TextStyle(
-                        fontSize: 25,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 25, color: Colors.white),
                     ),
                   ),
                 ),
@@ -209,14 +236,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontWeight: FontWeight.bold,
                           decoration: TextDecoration.underline,
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => Signup()),
-                            );
-                          },
-                      )
+                        recognizer:
+                            TapGestureRecognizer()
+                              ..onTap = () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => Signup()),
+                                );
+                              },
+                      ),
                     ],
                   ),
                 ),

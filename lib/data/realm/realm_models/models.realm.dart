@@ -302,7 +302,9 @@ class TinNhanNhom extends _TinNhanNhom
     String noiDung,
     String kieuTinNhan,
     DateTime thoiGianGui,
-    String duongDanAnh, {
+    String duongDanAnh,
+    ObjectId maNhom,
+    ObjectId maNguoiGui, {
     NhomChat? nhom,
     NguoiDung? nguoiGui,
     bool ghim = false,
@@ -318,6 +320,8 @@ class TinNhanNhom extends _TinNhanNhom
     RealmObjectBase.set(this, 'ghim', ghim);
     RealmObjectBase.set(this, 'thoiGianGui', thoiGianGui);
     RealmObjectBase.set(this, 'duongDanAnh', duongDanAnh);
+    RealmObjectBase.set(this, 'maNhom', maNhom);
+    RealmObjectBase.set(this, 'maNguoiGui', maNguoiGui);
   }
 
   TinNhanNhom._();
@@ -375,6 +379,19 @@ class TinNhanNhom extends _TinNhanNhom
       RealmObjectBase.set(this, 'duongDanAnh', value);
 
   @override
+  ObjectId get maNhom =>
+      RealmObjectBase.get<ObjectId>(this, 'maNhom') as ObjectId;
+  @override
+  set maNhom(ObjectId value) => RealmObjectBase.set(this, 'maNhom', value);
+
+  @override
+  ObjectId get maNguoiGui =>
+      RealmObjectBase.get<ObjectId>(this, 'maNguoiGui') as ObjectId;
+  @override
+  set maNguoiGui(ObjectId value) =>
+      RealmObjectBase.set(this, 'maNguoiGui', value);
+
+  @override
   RealmResults<TepDinhKemNhom> get tepDinhKem {
     if (!isManaged) {
       throw RealmError('Using backlinks is only possible for managed objects.');
@@ -409,6 +426,8 @@ class TinNhanNhom extends _TinNhanNhom
       'ghim': ghim.toEJson(),
       'thoiGianGui': thoiGianGui.toEJson(),
       'duongDanAnh': duongDanAnh.toEJson(),
+      'maNhom': maNhom.toEJson(),
+      'maNguoiGui': maNguoiGui.toEJson(),
     };
   }
 
@@ -422,6 +441,8 @@ class TinNhanNhom extends _TinNhanNhom
         'kieuTinNhan': EJsonValue kieuTinNhan,
         'thoiGianGui': EJsonValue thoiGianGui,
         'duongDanAnh': EJsonValue duongDanAnh,
+        'maNhom': EJsonValue maNhom,
+        'maNguoiGui': EJsonValue maNguoiGui,
       } =>
         TinNhanNhom(
           fromEJson(maTinNhanNhom),
@@ -429,6 +450,8 @@ class TinNhanNhom extends _TinNhanNhom
           fromEJson(kieuTinNhan),
           fromEJson(thoiGianGui),
           fromEJson(duongDanAnh),
+          fromEJson(maNhom),
+          fromEJson(maNguoiGui),
           nhom: fromEJson(ejson['nhom']),
           nguoiGui: fromEJson(ejson['nguoiGui']),
           ghim: fromEJson(ejson['ghim'], defaultValue: false),
@@ -467,6 +490,8 @@ class TinNhanNhom extends _TinNhanNhom
         SchemaProperty('ghim', RealmPropertyType.bool),
         SchemaProperty('thoiGianGui', RealmPropertyType.timestamp),
         SchemaProperty('duongDanAnh', RealmPropertyType.string),
+        SchemaProperty('maNhom', RealmPropertyType.objectid),
+        SchemaProperty('maNguoiGui', RealmPropertyType.objectid),
         SchemaProperty(
           'tepDinhKem',
           RealmPropertyType.linkingObjects,
@@ -491,7 +516,9 @@ class TinNhanCaNhan extends _TinNhanCaNhan
     String noiDung,
     String kieuTinNhan,
     DateTime thoiGianGui,
-    String duongDanAnh, {
+    String duongDanAnh,
+    ObjectId maNguoiGui,
+    ObjectId maNguoiNhan, {
     NguoiDung? nguoiGui,
     NguoiDung? nguoiNhan,
     bool ghim = false,
@@ -509,6 +536,8 @@ class TinNhanCaNhan extends _TinNhanCaNhan
     RealmObjectBase.set(this, 'ghim', ghim);
     RealmObjectBase.set(this, 'thoiGianGui', thoiGianGui);
     RealmObjectBase.set(this, 'duongDanAnh', duongDanAnh);
+    RealmObjectBase.set(this, 'maNguoiGui', maNguoiGui);
+    RealmObjectBase.set(this, 'maNguoiNhan', maNguoiNhan);
   }
 
   TinNhanCaNhan._();
@@ -566,6 +595,20 @@ class TinNhanCaNhan extends _TinNhanCaNhan
       RealmObjectBase.set(this, 'duongDanAnh', value);
 
   @override
+  ObjectId get maNguoiGui =>
+      RealmObjectBase.get<ObjectId>(this, 'maNguoiGui') as ObjectId;
+  @override
+  set maNguoiGui(ObjectId value) =>
+      RealmObjectBase.set(this, 'maNguoiGui', value);
+
+  @override
+  ObjectId get maNguoiNhan =>
+      RealmObjectBase.get<ObjectId>(this, 'maNguoiNhan') as ObjectId;
+  @override
+  set maNguoiNhan(ObjectId value) =>
+      RealmObjectBase.set(this, 'maNguoiNhan', value);
+
+  @override
   RealmResults<TepDinhKemCaNhan> get tepDinhKem {
     if (!isManaged) {
       throw RealmError('Using backlinks is only possible for managed objects.');
@@ -600,6 +643,8 @@ class TinNhanCaNhan extends _TinNhanCaNhan
       'ghim': ghim.toEJson(),
       'thoiGianGui': thoiGianGui.toEJson(),
       'duongDanAnh': duongDanAnh.toEJson(),
+      'maNguoiGui': maNguoiGui.toEJson(),
+      'maNguoiNhan': maNguoiNhan.toEJson(),
     };
   }
 
@@ -613,6 +658,8 @@ class TinNhanCaNhan extends _TinNhanCaNhan
         'kieuTinNhan': EJsonValue kieuTinNhan,
         'thoiGianGui': EJsonValue thoiGianGui,
         'duongDanAnh': EJsonValue duongDanAnh,
+        'maNguoiGui': EJsonValue maNguoiGui,
+        'maNguoiNhan': EJsonValue maNguoiNhan,
       } =>
         TinNhanCaNhan(
           fromEJson(maTinNhanCaNhan),
@@ -620,6 +667,8 @@ class TinNhanCaNhan extends _TinNhanCaNhan
           fromEJson(kieuTinNhan),
           fromEJson(thoiGianGui),
           fromEJson(duongDanAnh),
+          fromEJson(maNguoiGui),
+          fromEJson(maNguoiNhan),
           nguoiGui: fromEJson(ejson['nguoiGui']),
           nguoiNhan: fromEJson(ejson['nguoiNhan']),
           ghim: fromEJson(ejson['ghim'], defaultValue: false),
@@ -658,6 +707,8 @@ class TinNhanCaNhan extends _TinNhanCaNhan
         SchemaProperty('ghim', RealmPropertyType.bool),
         SchemaProperty('thoiGianGui', RealmPropertyType.timestamp),
         SchemaProperty('duongDanAnh', RealmPropertyType.string),
+        SchemaProperty('maNguoiGui', RealmPropertyType.objectid),
+        SchemaProperty('maNguoiNhan', RealmPropertyType.objectid),
         SchemaProperty(
           'tepDinhKem',
           RealmPropertyType.linkingObjects,
@@ -679,7 +730,8 @@ class NhomChat extends _NhomChat
     ObjectId maNhom,
     String tenNhom,
     bool riengTu,
-    DateTime ngayTao, {
+    DateTime ngayTao,
+    ObjectId maNguoiTao, {
     NguoiDung? nguoiTao,
     String? anhNhom,
   }) {
@@ -689,6 +741,7 @@ class NhomChat extends _NhomChat
     RealmObjectBase.set(this, 'nguoiTao', nguoiTao);
     RealmObjectBase.set(this, 'ngayTao', ngayTao);
     RealmObjectBase.set(this, 'anhNhom', anhNhom);
+    RealmObjectBase.set(this, 'maNguoiTao', maNguoiTao);
   }
 
   NhomChat._();
@@ -727,6 +780,13 @@ class NhomChat extends _NhomChat
       RealmObjectBase.get<String>(this, 'anhNhom') as String?;
   @override
   set anhNhom(String? value) => RealmObjectBase.set(this, 'anhNhom', value);
+
+  @override
+  ObjectId get maNguoiTao =>
+      RealmObjectBase.get<ObjectId>(this, 'maNguoiTao') as ObjectId;
+  @override
+  set maNguoiTao(ObjectId value) =>
+      RealmObjectBase.set(this, 'maNguoiTao', value);
 
   @override
   RealmResults<ThanhVienNhom> get danhSachThanhVien {
@@ -773,6 +833,7 @@ class NhomChat extends _NhomChat
       'nguoiTao': nguoiTao.toEJson(),
       'ngayTao': ngayTao.toEJson(),
       'anhNhom': anhNhom.toEJson(),
+      'maNguoiTao': maNguoiTao.toEJson(),
     };
   }
 
@@ -785,12 +846,14 @@ class NhomChat extends _NhomChat
         'tenNhom': EJsonValue tenNhom,
         'riengTu': EJsonValue riengTu,
         'ngayTao': EJsonValue ngayTao,
+        'maNguoiTao': EJsonValue maNguoiTao,
       } =>
         NhomChat(
           fromEJson(maNhom),
           fromEJson(tenNhom),
           fromEJson(riengTu),
           fromEJson(ngayTao),
+          fromEJson(maNguoiTao),
           nguoiTao: fromEJson(ejson['nguoiTao']),
           anhNhom: fromEJson(ejson['anhNhom']),
         ),
@@ -813,6 +876,7 @@ class NhomChat extends _NhomChat
       ),
       SchemaProperty('ngayTao', RealmPropertyType.timestamp),
       SchemaProperty('anhNhom', RealmPropertyType.string, optional: true),
+      SchemaProperty('maNguoiTao', RealmPropertyType.objectid),
       SchemaProperty(
         'danhSachThanhVien',
         RealmPropertyType.linkingObjects,
@@ -1193,6 +1257,8 @@ class TepDinhKemCaNhan extends _TepDinhKemCaNhan
 class KetBan extends _KetBan with RealmEntity, RealmObjectBase, RealmObject {
   KetBan(
     ObjectId id,
+    ObjectId maNguoiGui,
+    ObjectId maNguoiNhan,
     String trangThai,
     DateTime ngayTao, {
     NguoiDung? nguoiGui,
@@ -1201,6 +1267,8 @@ class KetBan extends _KetBan with RealmEntity, RealmObjectBase, RealmObject {
     RealmObjectBase.set(this, 'id', id);
     RealmObjectBase.set(this, 'nguoiGui', nguoiGui);
     RealmObjectBase.set(this, 'nguoiNhan', nguoiNhan);
+    RealmObjectBase.set(this, 'maNguoiGui', maNguoiGui);
+    RealmObjectBase.set(this, 'maNguoiNhan', maNguoiNhan);
     RealmObjectBase.set(this, 'trangThai', trangThai);
     RealmObjectBase.set(this, 'ngayTao', ngayTao);
   }
@@ -1225,6 +1293,20 @@ class KetBan extends _KetBan with RealmEntity, RealmObjectBase, RealmObject {
   @override
   set nguoiNhan(covariant NguoiDung? value) =>
       RealmObjectBase.set(this, 'nguoiNhan', value);
+
+  @override
+  ObjectId get maNguoiGui =>
+      RealmObjectBase.get<ObjectId>(this, 'maNguoiGui') as ObjectId;
+  @override
+  set maNguoiGui(ObjectId value) =>
+      RealmObjectBase.set(this, 'maNguoiGui', value);
+
+  @override
+  ObjectId get maNguoiNhan =>
+      RealmObjectBase.get<ObjectId>(this, 'maNguoiNhan') as ObjectId;
+  @override
+  set maNguoiNhan(ObjectId value) =>
+      RealmObjectBase.set(this, 'maNguoiNhan', value);
 
   @override
   String get trangThai =>
@@ -1254,6 +1336,8 @@ class KetBan extends _KetBan with RealmEntity, RealmObjectBase, RealmObject {
       'id': id.toEJson(),
       'nguoiGui': nguoiGui.toEJson(),
       'nguoiNhan': nguoiNhan.toEJson(),
+      'maNguoiGui': maNguoiGui.toEJson(),
+      'maNguoiNhan': maNguoiNhan.toEJson(),
       'trangThai': trangThai.toEJson(),
       'ngayTao': ngayTao.toEJson(),
     };
@@ -1265,11 +1349,15 @@ class KetBan extends _KetBan with RealmEntity, RealmObjectBase, RealmObject {
     return switch (ejson) {
       {
         'id': EJsonValue id,
+        'maNguoiGui': EJsonValue maNguoiGui,
+        'maNguoiNhan': EJsonValue maNguoiNhan,
         'trangThai': EJsonValue trangThai,
         'ngayTao': EJsonValue ngayTao,
       } =>
         KetBan(
           fromEJson(id),
+          fromEJson(maNguoiGui),
+          fromEJson(maNguoiNhan),
           fromEJson(trangThai),
           fromEJson(ngayTao),
           nguoiGui: fromEJson(ejson['nguoiGui']),
@@ -1296,6 +1384,8 @@ class KetBan extends _KetBan with RealmEntity, RealmObjectBase, RealmObject {
         optional: true,
         linkTarget: 'NguoiDung',
       ),
+      SchemaProperty('maNguoiGui', RealmPropertyType.objectid),
+      SchemaProperty('maNguoiNhan', RealmPropertyType.objectid),
       SchemaProperty('trangThai', RealmPropertyType.string),
       SchemaProperty('ngayTao', RealmPropertyType.timestamp),
     ]);

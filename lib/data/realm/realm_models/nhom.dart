@@ -10,6 +10,8 @@ abstract class _NhomChat {
   late DateTime ngayTao;
   String? anhNhom;
 
+  late ObjectId maNguoiTao;
+
   @Backlink(#nhom)
   late Iterable<_ThanhVienNhom> danhSachThanhVien;
 

@@ -12,6 +12,9 @@ abstract class _TinNhanCaNhan {
   late DateTime thoiGianGui;
   late String duongDanAnh;  //Nếu kiểu tin nhắn là image thì đây là đường dẫn của ảnh
 
+  late ObjectId maNguoiGui;
+  late ObjectId maNguoiNhan;
+
   @Backlink(#tinNhan)
   late Iterable<_TepDinhKemCaNhan> tepDinhKem;
 }

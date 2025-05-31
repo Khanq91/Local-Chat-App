@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
@@ -48,26 +49,29 @@ class _IndividualpageState extends State<Individualpage> {
   ScrollController _scrollController = ScrollController();
 
   String? selectedFileName;
+  File? Docfile;
   bool ShowEmoji = false;
   bool CheckValueInput = false;
   bool isImagePickerShown = false;
   bool IsLoadImages = false;
   bool IsLoadFiles = false;
   bool SentButton = false;
+  bool _isSaving = false;
+  bool _isSafeToExit = true;
 
   double bottomInset = 0;
   double bottomSheetHeight = 0.3;
-
   String selectedFilePath='';
 
   List<XFile> ImagePath = [];
   List<AssetEntity> allImages = [];
   List<MessageModel> messages = [];
+  final List<Map<String, dynamic>> _pendingMessages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
-  File? Docfile;
 
   late RealmResults<TinNhanCaNhan> results;
   final realm = RealmService().realm;
+  late StreamSubscription<RealmResultsChanges<TinNhanCaNhan>> _realmSubscription;
 
   @override
   void initState() {
@@ -78,9 +82,36 @@ class _IndividualpageState extends State<Individualpage> {
     final NguoiDung? nguoiNhan = realm.find<NguoiDung>(widget.receiverId);
 
     results = realm.query<TinNhanCaNhan>(
-        '((nguoiGui == \$0 AND nguoiNhan == \$1) OR (nguoiGui == \$1 AND nguoiNhan == \$0)) SORT(thoiGianGui ASC)',
-        [nguoiGui, nguoiNhan]
+        '(maNguoiGui == \$0 AND maNguoiNhan == \$1) OR (maNguoiNhan == \$2 AND maNguoiGui == \$3) SORT(thoiGianGui ASC)',
+        [widget.currentUserId, widget.receiverId, widget.currentUserId, widget.receiverId,]
     );
+
+    _realmSubscription = results.changes.listen((changes) {
+      setState(() {
+        messages = results.map((tinNhan) {
+          if (tinNhan.maNguoiGui.toString() == widget.currentUserId.toString())
+          {
+            return MessageModel(
+              type: "source",
+              message: tinNhan.noiDung,
+              time: tinNhan.thoiGianGui.toString().substring(10, 16),
+              path: tinNhan.duongDanAnh,
+              isPinned: tinNhan.ghim,
+            );
+          }
+          else
+          {
+            return MessageModel(
+              type: "destination",
+              message: tinNhan.noiDung,
+              time: tinNhan.thoiGianGui.toString().substring(10, 16),
+              path: tinNhan.duongDanAnh,
+              isPinned: tinNhan.ghim,
+            );
+          }
+        }).toList();
+      });
+    });
 
     _controller.addListener(() {
       setState(() {
@@ -92,6 +123,9 @@ class _IndividualpageState extends State<Individualpage> {
   @override
   void dispose() {
     widget.socket.off("message", _handleIncomingMessage);
+    Future.delayed(Duration(milliseconds: 200), () {
+      _realmSubscription.cancel();
+    });
     super.dispose();
   }
 
@@ -166,9 +200,8 @@ class _IndividualpageState extends State<Individualpage> {
   //   });
   //   print(socket?.connected);
   // }
-
   void _handleIncomingMessage(dynamic msg) {
-    bool isMe = msg["senderId"] == widget.currentUserId.toString();
+    bool isMe = msg["sourceId"] == widget.currentUserId.toString();
 
     setMessage(
       isMe ? "source" : "destination",
@@ -207,8 +240,52 @@ class _IndividualpageState extends State<Individualpage> {
     });
   }
 
-  void saveMessageToDB(Map<String, dynamic> data) {
+  // void saveMessageToDB(Map<String, dynamic> data) async {
+  //   _pendingMessages.add(data);
+  //   if (_isSaving) return;
+  //
+  //   _isSaving = true;
+  //   while (_pendingMessages.isNotEmpty) {
+  //     final current = _pendingMessages.removeAt(0);
+  //     try {
+  //       final NguoiDung? nguoiGui = realm.find<NguoiDung>(ObjectId.fromHexString(current["sourceId"]));
+  //       final NguoiDung? nguoiNhan = realm.find<NguoiDung>(ObjectId.fromHexString(current["targetId"]));
+  //
+  //       if (nguoiGui == null || nguoiNhan == null) {
+  //         print("❌ Không tìm thấy người gửi hoặc người nhận.");
+  //         continue;
+  //       }
+  //
+  //       realm.write(() {
+  //         final tinNhan = TinNhanCaNhan(
+  //             ObjectId(),
+  //             current["message"],
+  //             "text",
+  //             DateTime.now(),
+  //             '',
+  //             ObjectId.fromHexString(current["sourceId"]),
+  //             ObjectId.fromHexString(current["targetId"])
+  //         );
+  //         tinNhan.nguoiGui = nguoiGui;
+  //         tinNhan.nguoiNhan = nguoiNhan;
+  //         tinNhan.ghim = false;
+  //         tinNhan.thoiGianGui = DateTime.now();
+  //         tinNhan.maNguoiGui = ObjectId.fromHexString(current["sourceId"]);
+  //         tinNhan.maNguoiNhan = ObjectId.fromHexString(current["targetId"]);
+  //         realm.add(tinNhan);
+  //       });
+  //
+  //       print("✅ Lưu tin nhắn: ${current["message"]} [id: ${data["sourceId"].toString()} to id: ${data["targetId"].toString()}]");
+  //     } catch (e) {
+  //       print("❌ Lỗi khi lưu tin nhắn: $e");
+  //     }
+  //   }
+  //
+  //   _isSaving = false;
+  // }
 
+  void saveMessageToDB(Map<String, dynamic> data) {
+    _isSafeToExit = false;
     final NguoiDung? nguoiGui = realm.find<NguoiDung>(ObjectId.fromHexString(data["sourceId"]));
     final NguoiDung? nguoiNhan = realm.find<NguoiDung>(ObjectId.fromHexString(data["targetId"]));
 
@@ -219,22 +296,28 @@ class _IndividualpageState extends State<Individualpage> {
 
     realm.write(() {
       final tinNhan = TinNhanCaNhan(
-          ObjectId(),
-          data["message"],
-          "text",
-          DateTime.now(),
-          ''
+        ObjectId(),
+        data["message"],
+        "text",
+        DateTime.now(),
+        data["path"] ?? '',
+        ObjectId.fromHexString(data["sourceId"]),
+        ObjectId.fromHexString(data["targetId"]),
       );
       tinNhan.nguoiGui = nguoiGui;
       tinNhan.nguoiNhan = nguoiNhan;
       tinNhan.ghim = false;
       tinNhan.thoiGianGui = DateTime.now();
+      tinNhan.maNguoiGui = ObjectId.fromHexString(data["sourceId"]);
+      tinNhan.maNguoiNhan = ObjectId.fromHexString(data["targetId"]);
 
-      realm.add(tinNhan, update: true);
+      realm.add(tinNhan);
     });
 
-    print("✅ Tin nhắn [message: ${data["message"]}] [id: ${data["sourceId"].toString()} to id: ${data["sourceId"].toString()}] đã lưu vào Realm");
+    print("✅ Lưu tin nhắn ngay: ${data["message"]}");
+    _isSafeToExit = true;
   }
+
   // Gửi ảnh lên sever
   Future<List<String>> sendImageSend(
     List<AssetEntity> selectedImagesFromSheet,
@@ -400,7 +483,13 @@ class _IndividualpageState extends State<Individualpage> {
       appBar: AppBar(
         backgroundColor: Colors.blue,
         leading: IconButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            while (!_isSafeToExit) {
+              await Future.delayed(Duration(milliseconds: 100));
+            }
+            Navigator.pop(context);
+          },
+          // onPressed: () => Navigator.pop(context),
           icon: Icon(Icons.arrow_back, color: Colors.white),
         ),
         title: Column(
@@ -478,53 +567,7 @@ class _IndividualpageState extends State<Individualpage> {
                   if (index == messages.length) {
                     return Container(height: 70);
                   }
-                  //TODO: Vừa sửa lại 1 ít để nhấn vô hiện menu ghim
-                  // if (messages[index].type == "source") {
-                  //   if (messages[index].path.isNotEmpty) {
-                  //     return GestureDetector(
-                  //       onLongPress:
-                  //           () => _showMessageOptionsDialog(
-                  //             context,
-                  //             messages[index],
-                  //           ),
-                  //       child: OwnImageCard(
-                  //         path: [messages[index].path],
-                  //         time: messages[index].time,
-                  //       ),
-                  //     );
-                  //   } else {
-                  //     return GestureDetector(
-                  //       onLongPress:
-                  //           () => _showMessageOptionsDialog(
-                  //             context,
-                  //             messages[index],
-                  //           ),
-                  //       child: OwnMessageCard(
-                  //         message: messages[index].message,
-                  //         time: messages[index].time,
-                  //       ),
-                  //     );
-                  //   }
-                  // } else {
-                  //   if (messages[index].path.isNotEmpty) {
-                  //     return ReplyImageCard(
-                  //       path: [messages[index].path],
-                  //       time: messages[index].time,
-                  //     );
-                  //   } else {
-                  //     return GestureDetector(
-                  //       onLongPress:
-                  //           () => _showMessageOptionsDialog(
-                  //             context,
-                  //             messages[index],
-                  //           ),
-                  //       child: ReplyCard(
-                  //         message: messages[index].message,
-                  //         time: messages[index].time,
-                  //       ),
-                  //     );
-                  //   }
-                  // }
+
                   final message = messages[index];
                   final isSource = message.type == "source";
                   final String path = message.path;
