@@ -43,6 +43,8 @@ dependencies:
   file_picker: ^10.1.9
   realm: ^20.0.1
   http: ^1.4.0
+  dio: ^5.4.0
+  path_provider: ^2.1.1
 javadev_dependencies:
   flutter_test:
     sdk: flutter

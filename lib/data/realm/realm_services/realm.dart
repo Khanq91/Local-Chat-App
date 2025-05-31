@@ -17,7 +17,7 @@ class RealmService {
         TepDinhKemCaNhan.schema,
         KetBan.schema,
       ],
-      schemaVersion: 4,
+      schemaVersion: 5,
       migrationCallback: _migrationHandler,
     );
 

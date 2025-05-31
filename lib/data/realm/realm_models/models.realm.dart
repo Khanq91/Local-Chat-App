@@ -1072,12 +1072,14 @@ class TepDinhKemCaNhan extends _TepDinhKemCaNhan
     with RealmEntity, RealmObjectBase, RealmObject {
   TepDinhKemCaNhan(
     ObjectId maTepCaNhan,
+    String LoaiTep,
     String tenTep,
     String duongDan, {
     TinNhanCaNhan? tinNhan,
   }) {
     RealmObjectBase.set(this, 'maTepCaNhan', maTepCaNhan);
     RealmObjectBase.set(this, 'tinNhan', tinNhan);
+    RealmObjectBase.set(this, 'LoaiTep', LoaiTep);
     RealmObjectBase.set(this, 'tenTep', tenTep);
     RealmObjectBase.set(this, 'duongDan', duongDan);
   }
@@ -1097,6 +1099,11 @@ class TepDinhKemCaNhan extends _TepDinhKemCaNhan
   @override
   set tinNhan(covariant TinNhanCaNhan? value) =>
       RealmObjectBase.set(this, 'tinNhan', value);
+
+  @override
+  String get LoaiTep => RealmObjectBase.get<String>(this, 'LoaiTep') as String;
+  @override
+  set LoaiTep(String value) => RealmObjectBase.set(this, 'LoaiTep', value);
 
   @override
   String get tenTep => RealmObjectBase.get<String>(this, 'tenTep') as String;
@@ -1126,6 +1133,7 @@ class TepDinhKemCaNhan extends _TepDinhKemCaNhan
     return <String, dynamic>{
       'maTepCaNhan': maTepCaNhan.toEJson(),
       'tinNhan': tinNhan.toEJson(),
+      'LoaiTep': LoaiTep.toEJson(),
       'tenTep': tenTep.toEJson(),
       'duongDan': duongDan.toEJson(),
     };
@@ -1137,11 +1145,13 @@ class TepDinhKemCaNhan extends _TepDinhKemCaNhan
     return switch (ejson) {
       {
         'maTepCaNhan': EJsonValue maTepCaNhan,
+        'LoaiTep': EJsonValue LoaiTep,
         'tenTep': EJsonValue tenTep,
         'duongDan': EJsonValue duongDan,
       } =>
         TepDinhKemCaNhan(
           fromEJson(maTepCaNhan),
+          fromEJson(LoaiTep),
           fromEJson(tenTep),
           fromEJson(duongDan),
           tinNhan: fromEJson(ejson['tinNhan']),
@@ -1169,6 +1179,7 @@ class TepDinhKemCaNhan extends _TepDinhKemCaNhan
           optional: true,
           linkTarget: 'TinNhanCaNhan',
         ),
+        SchemaProperty('LoaiTep', RealmPropertyType.string),
         SchemaProperty('tenTep', RealmPropertyType.string),
         SchemaProperty('duongDan', RealmPropertyType.string),
       ],

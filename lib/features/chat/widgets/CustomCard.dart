@@ -6,25 +6,36 @@ import '../../../data/model/chatmodel.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class Customcard extends StatelessWidget {
-  const Customcard({Key? key, required this.chatModel, required this.sourchat,required this.currentUserId,required this.receiverId, required this.socket})
-    : super(key: key);
+  const Customcard({
+    Key? key,
+    required this.chatModel,
+    required this.sourchat,
+    required this.currentUserId,
+    required this.receiverId,
+    required this.socket,
+  }) : super(key: key);
   final ChatModel chatModel;
   final ChatModel sourchat;
-  final ObjectId  currentUserId;
-  final ObjectId  receiverId;
+  final ObjectId currentUserId;
+  final ObjectId receiverId;
   final IO.Socket socket;
+
   @override
   Widget build(BuildContext context) {
-
-  print(currentUserId);
+    print(currentUserId);
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder:
-                (context) =>
-                    Individualpage(chatModel: chatModel, sourchat: sourchat, currentUserId: currentUserId, receiverId: receiverId, socket: socket,),
+                (context) => Individualpage(
+                  chatModel: chatModel,
+                  sourchat: sourchat,
+                  currentUserId: currentUserId,
+                  receiverId: receiverId,
+                  socket: socket,
+                ),
           ),
         );
       },

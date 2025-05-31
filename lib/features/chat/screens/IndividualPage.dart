@@ -12,16 +12,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:realm/realm.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import '../../../data/model/Message/FileModel.dart';
 import '../../../data/model/Message/MessageModel.dart';
 import '../../../data/model/chatmodel.dart';
-<<<<<<< HEAD
-import '../widgets/Files/OwnFileCard.dart';
-import '../widgets/Files/ReplyFileCard.dart';
-=======
+
 import '../../../data/realm/realm_models/models.dart';
 import '../../../data/realm/realm_services/realm.dart';
->>>>>>> 3189c2f0b7fb9a1673708e7ec42f144e7045c35b
+import '../widgets/Files/OwnFileCard.dart';
+import '../widgets/Files/ReplyFileCard.dart';
 import '../widgets/ImagePicker/ImagePickerSheet.dart';
 import '../widgets/ImagePicker/OwnImageCard .dart';
 import '../widgets/ImagePicker/ReplyImageCard.dart';
@@ -36,7 +33,6 @@ class Individualpage extends StatefulWidget {
     required this.receiverId,
     required this.socket,
   });
-
   final ChatModel chatModel;
   final ChatModel sourchat;
   final ObjectId  currentUserId;
@@ -68,13 +64,10 @@ class _IndividualpageState extends State<Individualpage> {
   List<AssetEntity> allImages = [];
   List<MessageModel> messages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
-<<<<<<< HEAD
   File? Docfile;
 
-=======
   late RealmResults<TinNhanCaNhan> results;
   final realm = RealmService().realm;
->>>>>>> 3189c2f0b7fb9a1673708e7ec42f144e7045c35b
 
   @override
   void initState() {
@@ -101,7 +94,6 @@ class _IndividualpageState extends State<Individualpage> {
     widget.socket.off("message", _handleIncomingMessage);
     super.dispose();
   }
-
 
   void _showMessageOptionsDialog(BuildContext context, MessageModel message) {
     showModalBottomSheet(
@@ -215,10 +207,6 @@ class _IndividualpageState extends State<Individualpage> {
     });
   }
 
-<<<<<<< HEAD
-  // Gửi ảnh lên sever
-  Future<List<String>> sendImageSend(List<AssetEntity> selectedImagesFromSheet,) async {
-=======
   void saveMessageToDB(Map<String, dynamic> data) {
 
     final NguoiDung? nguoiGui = realm.find<NguoiDung>(ObjectId.fromHexString(data["sourceId"]));
@@ -247,11 +235,10 @@ class _IndividualpageState extends State<Individualpage> {
 
     print("✅ Tin nhắn [message: ${data["message"]}] [id: ${data["sourceId"].toString()} to id: ${data["sourceId"].toString()}] đã lưu vào Realm");
   }
-
+  // Gửi ảnh lên sever
   Future<List<String>> sendImageSend(
     List<AssetEntity> selectedImagesFromSheet,
   ) async {
->>>>>>> 3189c2f0b7fb9a1673708e7ec42f144e7045c35b
     var request = http.MultipartRequest(
       "POST",
       Uri.parse("http://${AppConfig.baseUrl}:5000/routes/addimage"),
@@ -274,7 +261,11 @@ class _IndividualpageState extends State<Individualpage> {
 
     if (response.statusCode == 200 && data['path'] != null) {
       List<String> serverPaths = List<String>.from(data['path']);
+      for (String serverPath in serverPaths) {
+        SaveFileToRealm(serverPath);
+      }
       return serverPaths;
+
     } else {
       return [];
     }
@@ -301,8 +292,12 @@ class _IndividualpageState extends State<Individualpage> {
     http.StreamedResponse response = await request.send();
     var httpResponse = await http.Response.fromStream(response);
     var data = json.decode(httpResponse.body);
-
     if (response.statusCode == 200 && data['path'] != null) {
+      List<String> uploadedPaths = List<String>.from(data['path']);
+      for (String serverPath in uploadedPaths) {
+        SaveFileToRealm(serverPath);
+      }
+
       return List<String>.from(data['path']);
     } else {
       print("Upload thất bại: ${response.statusCode}, body: ${httpResponse.body}");
@@ -367,6 +362,32 @@ class _IndividualpageState extends State<Individualpage> {
     if (bytes < 1024) return "$bytes B";
     else if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(2)} KB";
     else return "${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB";
+  }
+  String getLoaiTep(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif')) {
+      return "image";
+    } else {
+      return "file";
+    }
+  }
+
+  // Luu data file  vao realm
+  void SaveFileToRealm(String path) {
+    final fileName = path.split('/').last; // Lấy tên file từ path
+    final loaiTep = getLoaiTep(fileName);  // Phân loại ảnh hay file
+
+    final tep = TepDinhKemCaNhan(
+      ObjectId(),
+      loaiTep,
+      fileName,
+      path,
+    );
+
+    // Lưu vào Realm
+    realm.write(() {
+      realm.add(tep);
+    });
   }
 
   @override
@@ -728,7 +749,6 @@ class _IndividualpageState extends State<Individualpage> {
       ),
     );
   }
-
   Widget emojiSelect() {
     return EmojiPicker(
       onEmojiSelected: (category, emoji) {
@@ -742,3 +762,4 @@ class _IndividualpageState extends State<Individualpage> {
     );
   }
 }
+

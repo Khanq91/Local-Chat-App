@@ -1,11 +1,12 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../data/model/Message/FileModel.dart';
 
 class OwnFileCard extends StatelessWidget {
-  // final FileModel fileModel;
   final String fileName;
-  // final int fileSize;
   final String time;
 
   const OwnFileCard({
@@ -33,6 +34,47 @@ class OwnFileCard extends StatelessWidget {
       return "${(bytes / 1024).toStringAsFixed(1)} KB";
     } else {
       return "$bytes B";
+    }
+  }
+  Future<bool> requestStoragePermission() async {
+    var status = await Permission.storage.status;
+
+    if (status.isDenied || status.isPermanentlyDenied) {
+      status = await Permission.storage.request();
+    }
+
+    return status.isGranted;
+  }
+  Future<void> downloadFile(String url, BuildContext context) async {
+    try {
+      var status = await Permission.storage.request();
+      if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Không có quyền lưu trữ")),
+        );
+        return;
+      }
+
+      // Tách tên file từ đường dẫn URL
+      String fileName = url.split('/').last;
+
+      Directory directory = Platform.isAndroid
+          ? Directory('/storage/emulated/0/Download')
+          : await getApplicationDocumentsDirectory();
+
+      String savePath = '${directory.path}/$fileName';
+
+      Dio dio = Dio();
+      await dio.download(url, savePath);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Đã tải xuống: $fileName")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Tải xuống thất bại")),
+      );
+      print("Lỗi tải file: $e");
     }
   }
 
@@ -86,7 +128,7 @@ class OwnFileCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.download, color: Colors.blue),
                   onPressed: () {
-                    // TODO: download file
+                    downloadFile(fileName, context);
                   },
                 ),
               ],
