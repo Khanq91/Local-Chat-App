@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/SearchScreen.dart';
 import 'package:realm/realm.dart';
@@ -8,6 +9,7 @@ import '../../../data/model/assets.dart';
 import '../../../data/model/chatmodel.dart';
 import '../../../data/realm/realm_models/models.dart';
 import '../../../data/realm/realm_services/realm.dart';
+import '../../chat/NotificationServiceManager.dart';
 import '../../chat/screens/CreateGroupPages.dart';
 import '../../chat/screens/ChatPages.dart';
 import 'FriendsListScreen.dart';
@@ -31,17 +33,14 @@ class _DsTinnhanState extends State<Home_Screen> {
   void initState() {
     super.initState();
 
-
     final ObjectId currentUserId = widget.currentUser.maNguoiDung;
-
     final socketService = SocketService();
     final Realm realm = RealmService().realm;
-
     socketConnect = socketService.connect(currentUserId);
-
     var danhSachKetBan = realm.all<KetBan>().where((ketBan) =>
     ketBan.trangThai == 'accepted' &&
-        (ketBan.nguoiGui?.maNguoiDung == currentUserId || ketBan.nguoiNhan?.maNguoiDung == currentUserId)
+        (ketBan.nguoiGui?.maNguoiDung == currentUserId ||
+            ketBan.nguoiNhan?.maNguoiDung == currentUserId)
     ).toList();
 
     var danhSachBanBe = danhSachKetBan.map((ketBan) {
@@ -55,10 +54,13 @@ class _DsTinnhanState extends State<Home_Screen> {
     chats = danhSachBanBe.map((nguoiDung) {
       return ChatModel(
         name: nguoiDung.hoTen!,
-        avatar: "assets/images/meme.jpg", // Có thể thay bằng ảnh đại diện thật nếu có
+        avatar: "assets/images/meme.jpg",
+        // Có thể thay bằng ảnh đại diện thật nếu có
         isGroup: false,
-        time: "", // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
-        currentMessage: "", // Có thể cập nhật tin nhắn cuối cùng nếu cần
+        time: "",
+        // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
+        currentMessage: "",
+        // Có thể cập nhật tin nhắn cuối cùng nếu cần
         id: nguoiDung.maNguoiDung, // Có thể lấy id phù hợp nếu cần
       );
     }).toList();
@@ -80,8 +82,51 @@ class _DsTinnhanState extends State<Home_Screen> {
         });
       }
     });
+    socketConnect.on("message", (msg) {
+      if (msg["targetId"] == currentUserId.toString()) {
+        final sourceId = ObjectId.fromHexString(msg["sourceId"]);
+        final nguoiGui = realm
+            .all<NguoiDung>()
+            .query("maNguoiDung == \$0", [sourceId])
+            .firstOrNull
+            ?.hoTen ?? "Người lạ";
+        NotificationDetails details = NotificationServiceManager()
+            .getNotificationDetail(
+          channelId: "hoc hoc",
+          channelName: "Day la test",
+        );
+        String mess = '';
+        String path = msg["path"] ?? "";
+        String rawMessage = msg["message"] ?? "";
 
-    setState(() {});
+        if (rawMessage.isNotEmpty && path.isEmpty) {
+          mess = rawMessage; // Văn bản thuần
+        } else if (rawMessage.isEmpty && path.isNotEmpty) {
+          // Xác định loại file từ path
+          final lowerPath = path.toLowerCase();
+          if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg") ||
+              lowerPath.endsWith(".png") || lowerPath.endsWith(".gif")) {
+            mess = "[📷 Hình ảnh đã gửi]";
+          } else
+          if (lowerPath.endsWith(".pdf") || lowerPath.endsWith(".docx") ||
+              lowerPath.endsWith(".zip") || lowerPath.endsWith(".xlsx")) {
+            mess = "[📎 Tệp tin đã gửi]";
+          } else {
+            mess = "[📁 Nội dung đã gửi]";
+          }
+        } else if (rawMessage.isNotEmpty && path.isNotEmpty) {
+          // Tin nhắn có cả văn bản và tệp
+          mess = "$rawMessage + đính kèm tệp";
+        } else {
+          mess = "[🔔 Tin nhắn mới]";
+        }
+
+        NotificationServiceManager().show(
+            title: nguoiGui,
+            body: mess,
+            notificationDetails: details);
+      }
+    });
   }
   @override
   Widget build(BuildContext context) {

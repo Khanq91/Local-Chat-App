@@ -6,8 +6,19 @@ import 'package:nhan_tin_noi_bo/features/auth/screens/WelcomeScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/HomeScreen.dart';
 import 'package:nhan_tin_noi_bo/presentation/splash/SplashScreen.dart';
 import 'package:nhan_tin_noi_bo/features/auth/screens/SignUp.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-void main() {
+import 'features/chat/NotificationServiceManager.dart';
+
+void main  () async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await [
+    Permission.notification,
+    Permission.scheduleExactAlarm,
+  ].request();
+
+  await NotificationServiceManager().init();
+
   runApp(const MyApp());
 }
 

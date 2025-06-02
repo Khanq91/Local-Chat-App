@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocalNotificationUsageDescription</key>
+    <string>Ứng dụng cần quyền để hiển thị thông báo</string>
 </dict>
 </plist>
