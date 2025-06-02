@@ -5,8 +5,10 @@ import 'package:nhan_tin_noi_bo/features/user/screens/HomeScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/auth/screens/SignUp.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/SearchScreen.dart';
+import 'package:provider/provider.dart';
 import 'package:realm/realm.dart';
-
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../../../core/utils/FriendsStatusProvider.dart';
 import '../../../core/utils/connection.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/realm/realm_services/realm.dart';
@@ -45,6 +47,25 @@ class _LoginScreenState extends State<LoginScreen> {
       realm.deleteAll<NguoiDung>();
       realm.deleteAll<KetBan>();
     });
+  }
+
+  void _onLoginSuccess(NguoiDung user) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider(
+              create: (_) => FriendsProvider(
+                currentUser: user,
+                realm: RealmService().realm,
+              ),
+            ),
+          ],
+          child: Home_Screen(currentUser: currentUser),
+        ),
+      ),
+    );
   }
 
   @override
@@ -166,16 +187,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ).showSnackBar(SnackBar(content: Text("Sai mật khẩu")));
                         return;
                       }
-
                       currentUser = user;
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (BuildContext context) =>
-                                  Home_Screen(currentUser: currentUser),
-                        ),
-                      );
+                      _onLoginSuccess(user);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/SearchScreen.dart';
+import 'package:provider/provider.dart';
 import 'package:realm/realm.dart';
-
+import '../../../core/Services/UserStatus.dart';
 import '../../../core/utils/connection.dart';
+import '../../../core/utils/FriendsStatusProvider.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/model/chatmodel.dart';
 import '../../../data/realm/realm_models/models.dart';
@@ -23,7 +25,8 @@ class Home_Screen extends StatefulWidget {
   State<Home_Screen> createState() => _DsTinnhanState();
 }
 
-class _DsTinnhanState extends State<Home_Screen> {
+// class _DsTinnhanState extends State<Home_Screen> {
+class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   List<ChatModel> chats = [];
   bool _isSocketConnected = false;
@@ -39,8 +42,7 @@ class _DsTinnhanState extends State<Home_Screen> {
     socketConnect = socketService.connect(currentUserId);
     var danhSachKetBan = realm.all<KetBan>().where((ketBan) =>
     ketBan.trangThai == 'accepted' &&
-        (ketBan.nguoiGui?.maNguoiDung == currentUserId ||
-            ketBan.nguoiNhan?.maNguoiDung == currentUserId)
+        (ketBan.nguoiGui?.maNguoiDung == currentUserId || ketBan.nguoiNhan?.maNguoiDung == currentUserId)
     ).toList();
 
     var danhSachBanBe = danhSachKetBan.map((ketBan) {
@@ -54,13 +56,10 @@ class _DsTinnhanState extends State<Home_Screen> {
     chats = danhSachBanBe.map((nguoiDung) {
       return ChatModel(
         name: nguoiDung.hoTen!,
-        avatar: "assets/images/meme.jpg",
-        // Có thể thay bằng ảnh đại diện thật nếu có
+        avatar: "assets/images/meme.jpg", // Có thể thay bằng ảnh đại diện thật nếu có
         isGroup: false,
-        time: "",
-        // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
-        currentMessage: "",
-        // Có thể cập nhật tin nhắn cuối cùng nếu cần
+        time: "", // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
+        currentMessage: "", // Có thể cập nhật tin nhắn cuối cùng nếu cần
         id: nguoiDung.maNguoiDung, // Có thể lấy id phù hợp nếu cần
       );
     }).toList();
@@ -72,6 +71,10 @@ class _DsTinnhanState extends State<Home_Screen> {
           _isSocketConnected = true;
         });
       }
+      socketConnect.emit("capNhatTrangThai", {
+        "userId": widget.currentUser.maNguoiDung,
+        "trangThai": true,
+      });
     });
 
     socketConnect.onDisconnect((_) {
@@ -127,7 +130,72 @@ class _DsTinnhanState extends State<Home_Screen> {
             notificationDetails: details);
       }
     });
+    socketConnect.on("capNhatTrangThai", (data) {
+      final userId = ObjectId.fromHexString(data["userId"]);
+      final status = data["trangThai"] == true;
+
+      final provider = Provider.of<FriendsProvider>(context, listen: false);
+      provider.updateOnlineStatus(userId, status);
+      // UserService().capNhatTrangThai(userId, status);
+      setState(() {}); // Cập nhật UI nếu cần
+    });
+
+    setState(() {});
+
   }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // disconnectTimer?.cancel();
+    socketConnect.emit("capNhatTrangThai", {
+      "userId": widget.currentUser.maNguoiDung,
+      "trangThai": false,
+    });
+    socketConnect.off("capNhatTrangThai");
+
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      // disconnectTimer?.cancel();
+      // disconnectTimer = Timer(Duration(seconds: 30), () {
+        socketConnect.emit("capNhatTrangThai", {
+          "userId": widget.currentUser.maNguoiDung,
+          "trangThai": false,
+        });
+      // });
+    } else if (state == AppLifecycleState.resumed) {
+      // disconnectTimer?.cancel();
+      socketConnect.emit("capNhatTrangThai", {
+        "userId": widget.currentUser.maNguoiDung,
+        "trangThai": true,
+      });
+    }
+  }
+
+  void _onLoginSuccess(NguoiDung user, IO.Socket socket) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider(
+              create: (_) => FriendsProvider(
+                currentUser: user,
+                realm: RealmService().realm,
+              ),
+            ),
+          ],
+          child: FriendsListScreen(currentUser: user, socket: socket),
+        ),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final ObjectId currentUserId = widget.currentUser.maNguoiDung;
@@ -144,7 +212,7 @@ class _DsTinnhanState extends State<Home_Screen> {
         currentUserId:currentUserId,
         socket: socketConnect,
       ),
-      FriendsListScreen(currentUser: widget.currentUser,)
+      FriendsListScreen(currentUser: widget.currentUser, socket: socketConnect)
     ];
 
     return Scaffold(
