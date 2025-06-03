@@ -1,6 +1,13 @@
+import 'dart:convert';
+import 'package:realm/realm.dart';
+import '../../../core/utils/connection.dart';
+import '../../../data/realm/realm_services/realm.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:nhan_tin_noi_bo/config/IPconfig.dart';
 import 'package:realm/realm.dart';
 import 'package:nhan_tin_noi_bo/data/realm/realm_services/realm.dart';
 import 'package:nhan_tin_noi_bo/data/realm/realm_models/models.dart';
@@ -18,7 +25,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _fullNameController = TextEditingController();
   final _passwordController = TextEditingController();
   File? _selectedImage;
-
+  late IO.Socket socketConnect;
+  bool _isSocketConnected = false;
   final _realmService = RealmService();
 
   Future<void> _pickImage() async {
@@ -26,10 +34,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     if (picked != null) setState(() => _selectedImage = File(picked.path));
   }
 
-  void _createAccount() {
+  Future<void> _createAccount() async {
     final password = _passwordController.text.trim();
     final fullName = _fullNameController.text.trim();
-
+    print("chạy hàm _createAccount");
     if (password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Vui lòng nhập mật khẩu")),
@@ -45,24 +53,70 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    final newUser = NguoiDung(
-      ObjectId(),
-      widget.phoneNumber,
-      password,
-      true,
-      "user",
-      DateTime.now(),
-      hoTen: fullName.isEmpty ? null : fullName,
-      anhDaiDien: _selectedImage?.path,
-    );
+    // final newUser = NguoiDung(
+    //   ObjectId(),
+    //   widget.phoneNumber,
+    //   password,
+    //   true,
+    //   "user",
+    //   DateTime.now(),
+    //   hoTen: fullName.isEmpty ? null : fullName,
+    //   anhDaiDien: _selectedImage?.path,
+    // );
+    // _realmService.add<NguoiDung>(newUser);
+    // Navigator.pushReplacement(
+    //   context,
+    //   MaterialPageRoute(builder: (_) => Home_Screen(currentUser: newUser)),
+    // );
 
-    _realmService.add<NguoiDung>(newUser);
+    final uri = Uri.parse("http://${AppConfig.baseUrl}:5000/routes/register");
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => Home_Screen(currentUser: newUser)),
-    );
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "phoneNumber": widget.phoneNumber,
+          "password": password,
+          "fullName": fullName,
+          "avatarUrl": _selectedImage?.path, // Gửi URL hoặc upload trước lên server nếu cần
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final result = jsonDecode(response.body);
+        // Ghi xuống Realm nếu muốn lưu offline
+        final userData = result['user'];
+        final newUser = NguoiDung(
+          ObjectId(),
+          userData['phoneNumber'],
+          userData['password'],
+          true,
+          "user",
+          DateTime.now(),
+          hoTen: userData['fullName'],
+          anhDaiDien: userData['avatarUrl'],
+        );
+
+
+        _realmService.add<NguoiDung>(newUser);
+        print("Thêm tài khoản user \"${newUser.maNguoiDung}\" thành công");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Home_Screen(currentUser: newUser)),
+        );
+      } else {
+        final error = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("⚠️ ${error['message']}")),
+        );
+      }
+    } catch (e) {
+      print("Lỗi khi gọi API: $e");
+    }
   }
+
+
 
   @override
   Widget build(BuildContext context) {

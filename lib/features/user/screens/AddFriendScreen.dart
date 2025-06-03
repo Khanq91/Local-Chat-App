@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
-
+import 'package:nhan_tin_noi_bo/core/utils/firstWhereOrNull.dart';
+import 'package:realm/realm.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../../../data/model/assets.dart';
+import '../../../data/model/chatmodel.dart';
+import '../../../data/realm/realm_models/models.dart';
+import '../../../data/realm/realm_services/realm.dart';
+import '../../chat/screens/IndividualPage.dart';
 
 class AddFriendScreen extends StatefulWidget {
-  const AddFriendScreen({super.key});
+  final NguoiDung currentUser;
+  final IO.Socket socket;
+  const AddFriendScreen({super.key, required this.currentUser, required this.socket,});
 
   @override
   State<AddFriendScreen> createState() => _AddFriendScreenState();
@@ -11,29 +19,85 @@ class AddFriendScreen extends StatefulWidget {
 
 class _AddFriendScreenState extends State<AddFriendScreen> {
   TextEditingController searchController = TextEditingController();
-  List<Map<String, String>> allUsers = [
-    {"name": "Khang Dương", "phone": "0787933111"},
-    {"name": "Cẩm Duyên", "phone": "0703158111"},
-    {"name": "Tuấn Trần", "phone": "0939123456"},
-    {"name": "Mai Phương", "phone": "0971122334"},
-  ];
-  List<Map<String, String>> filteredUsers = [];
+  late Realm realm;
+  List<NguoiDung> filteredUsers = [];
+  List<ChatModel> chats = [];
+
+  KetBan? checkKetBan(NguoiDung currentUser, NguoiDung otherUser) {
+    final allRequests = realm.all<KetBan>();
+    return allRequests.firstWhereOrNull((k) =>
+    ((k.maNguoiGui == currentUser.maNguoiDung && k.maNguoiNhan == otherUser.maNguoiDung) ||
+        (k.maNguoiNhan == currentUser.maNguoiDung && k.maNguoiGui == otherUser.maNguoiDung))
+    );
+  }
+
   void searchUser() {
-    String keyword = searchController.text.trim();
+    final keyword = searchController.text.trim().toLowerCase();
+
     if (keyword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng nhập tên hoặc số điện thoại!')),
+        SnackBar(content: Text('Vui lòng nhập số điện thoại hoặc họ tên!')),
       );
       return;
     }
-    keyword = searchController.text.trim().toLowerCase();
+
+    final results = realm.all<NguoiDung>().where((nguoiDung) {
+      if (nguoiDung.maNguoiDung == widget.currentUser.maNguoiDung) return false;
+      final hoTen = nguoiDung.hoTen?.toLowerCase() ?? "";
+      final tenDangNhap = nguoiDung.tenDangNhap.toLowerCase();
+      return hoTen.contains(keyword) || tenDangNhap.contains(keyword);
+    }).toList();
+
     setState(() {
-      filteredUsers = allUsers.where((user) {
-        final name = user["name"]!.toLowerCase();
-        final phone = user["phone"]!;
-        return name.contains(keyword) || phone.contains(keyword);
-      }).toList();
+      filteredUsers = results;
     });
+  }
+
+  void guiLoiMoiKetBan(NguoiDung currentUser, NguoiDung targetUser) {
+    realm.write(() {
+      final newRequest = KetBan(
+        ObjectId(),
+        currentUser.maNguoiDung,
+        targetUser.maNguoiDung,
+          'pending',
+        DateTime.now()
+      )
+        ..nguoiGui = currentUser
+        ..nguoiNhan = targetUser
+        ..maNguoiGui = currentUser.maNguoiDung
+        ..maNguoiNhan = targetUser.maNguoiDung
+        ..trangThai = 'pending'
+        ..ngayTao = DateTime.now();
+
+      realm.add(newRequest);
+    });
+
+    widget.socket.emit("loiMoiKetBan", {
+      "maNguoiGui": currentUser.maNguoiDung.toString(),
+      "maNguoiNhan": targetUser.maNguoiDung.toString(),
+      "trangThai": "pending",
+      "ngayTao": DateTime.now().toIso8601String(),
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("📨 Đã gửi lời mời kết bạn!")),
+    );
+  }
+
+
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    realm = RealmService().realm;
+
+    widget.socket.on("nhanLoiMoiKetBan", (data) {
+      print("📩 Nhận lời mời kết bạn từ: ${data["maNguoiGui"]}");
+
+      // TODO: Bạn có thể hiển thị snackbar, badge thông báo, hoặc load lại UI
+    });
+
   }
 
   @override
@@ -87,15 +151,52 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                 itemCount: filteredUsers.length,
                 itemBuilder: (context, index) {
                   final user = filteredUsers[index];
+                  final friendStatus = checkKetBan(widget.currentUser, user);
+                  String statusLabel;
+                  IconData statusIcon;
+                  Color statusColor;
+                  if (friendStatus == null) {
+                    statusLabel = "Kết bạn";
+                    statusIcon = Icons.person_add;
+                    statusColor = Colors.blue;
+                  } else if (friendStatus.trangThai == 'pending') {
+                    statusLabel = "Đã gửi lời mời";
+                    statusIcon = Icons.hourglass_top;
+                    statusColor = Colors.orange;
+                  } else if (friendStatus.trangThai == 'accepted') {
+                    statusLabel = "Đã là bạn";
+                    statusIcon = Icons.check_circle;
+                    statusColor = Colors.green;
+                  } else {
+                    statusLabel = "Từ chối"; // optional
+                    statusIcon = Icons.block;
+                    statusColor = Colors.red;
+                  }
+
                   return ListTile(
                     leading: CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(user["name"] ?? ""),
-                    subtitle: Text(user["phone"] ?? ""),
+                    title: Text(user.hoTen ?? ""),
+                    subtitle: Text(user.tenDangNhap ?? ""),
                     trailing: IconButton(
                       onPressed: (){
                         // TODO: Gửi lời mời kết bạn...
+                        if(friendStatus == null) {
+                          guiLoiMoiKetBan(widget.currentUser, user);
+                        } else if(friendStatus.trangThai == 'pending'){
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Đã gửi lời mời kết bạn rồi!")),
+                          );
+                        } else if(friendStatus.trangThai == 'accepted'){
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Các bạn đã là bạn bè!")),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Bạn đã bị chặn!")),
+                          );
+                        }
                       },
-                    icon: Icon(Icons.add)),
+                    icon: Icon(statusIcon, color: statusColor,)),
                     onTap: () {
                       // TODO: Mở hồ sơ bạn bè
                     },

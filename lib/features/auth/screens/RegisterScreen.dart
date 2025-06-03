@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'OTPScreen.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class RegisterScreen extends StatefulWidget {
   @override

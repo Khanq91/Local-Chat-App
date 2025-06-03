@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:nhan_tin_noi_bo/data/realm/realm_models/models.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/auth/screens/SignIn.dart';
-
+import 'package:realm/realm.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../../../core/utils/connection.dart';
 import '../../../data/model/assets.dart';
+import '../../../data/model/chatmodel.dart';
+import '../../../data/realm/realm_services/realm.dart';
 import '../../chat/screens/CreateGroupPages.dart';
+import '../../chat/screens/IndividualPage.dart';
+import '../../chat/widgets/CustomCard.dart';
 
 class SearchGrouporfriendScreen extends StatefulWidget {
-  const SearchGrouporfriendScreen({super.key});
+  final NguoiDung currentUser;
+  final IO.Socket socket;
+  const SearchGrouporfriendScreen({super.key, required this.currentUser, required this.socket,});
 
   @override
   State<SearchGrouporfriendScreen> createState() => _SearchGrouporfriendScreenState();
@@ -15,21 +24,47 @@ class SearchGrouporfriendScreen extends StatefulWidget {
 class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
   bool isLoading = false;
   TextEditingController searchController = TextEditingController();
-  List<Map<String, String>> allUsers = [
-    {"name": "Khang Dương", "phone": "0787933111"},
-    {"name": "Cẩm Duyên", "phone": "0703158111"},
-    {"name": "Tuấn Trần", "phone": "0939123456"},
-    {"name": "Mai Phương", "phone": "0971122334"},
-  ];
-  List<Map<String, String>> filteredUsers = [];
+  late Realm realm;
+  List<ChatModel> chats = [];
+  List<KetBan> danhSachKetBan = [];
+  List<NguoiDung> danhSachBanBe = [];
+  List<NguoiDung> filteredUsers = [];
 
   @override
   void initState() {
     super.initState();
+    realm = RealmService().realm;
+
+    final ObjectId currentUserId = widget.currentUser.maNguoiDung;
+    danhSachKetBan = realm.all<KetBan>().where((ketBan) =>
+    ketBan.trangThai == 'accepted' &&
+        (ketBan.nguoiGui?.maNguoiDung == widget.currentUser.maNguoiDung ||
+            ketBan.nguoiNhan?.maNguoiDung == widget.currentUser.maNguoiDung)
+    ).toList();
+
+    danhSachBanBe = danhSachKetBan.map((ketBan) {
+      if (ketBan.nguoiGui?.maNguoiDung == currentUserId) {
+        return ketBan.nguoiNhan!;
+      } else {
+        return ketBan.nguoiGui!;
+      }
+    }).toList();
+    // filteredUsers = List.from(danhSachBanBe);
     filteredUsers = [];
 
-    searchController.addListener(_onSearchChanged);
+    chats = danhSachBanBe.map((nguoiDung) {
+      String avatarCheck = nguoiDung.anhDaiDien == null ? nguoiDung.hoTen!.substring(0, 1).toUpperCase() : nguoiDung.anhDaiDien!;
+      return ChatModel(
+        name: nguoiDung.hoTen!,
+        avatar: avatarCheck, // Có thể thay bằng ảnh đại diện thật nếu có
+        isGroup: false,
+        time: "", // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
+        currentMessage: "", // Có thể cập nhật tin nhắn cuối cùng nếu cần
+        id: nguoiDung.maNguoiDung, // Có thể lấy id phù hợp nếu cần
+      );
+    }).toList();
 
+    searchController.addListener(_onSearchChanged);
   }
 
   void _onSearchChanged() async {
@@ -38,21 +73,20 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
     setState(() {
       isLoading = true;
     });
-
     // await Future.delayed(Duration(milliseconds: 500));
+    Future.delayed(Duration(milliseconds: 300), () {
+      final List<NguoiDung> results = keyword.isEmpty
+          ? []
+          : danhSachBanBe.where((nguoiDung) {
+        final name = nguoiDung.hoTen?.toLowerCase() ?? "";
+        final phone = nguoiDung.tenDangNhap ?? "";
+        return name.contains(keyword) || phone.contains(keyword);
+      }).toList();
 
-    setState(() {
-      if (keyword.isEmpty) {
-        filteredUsers = [];
-      }
-      else {
-        filteredUsers = allUsers.where((user) {
-          final name = user["name"]!.toLowerCase();
-          final phone = user["phone"]!;
-          return name.contains(keyword) || phone.contains(keyword);
-        }).toList();
-      }
-      isLoading = false;
+      setState(() {
+        filteredUsers = results;
+        isLoading = false;
+      });
     });
   }
 
@@ -100,7 +134,7 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
             onPressed: (){
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => AddFriendScreen()),
+                MaterialPageRoute(builder: (context) => AddFriendScreen(currentUser: widget.currentUser, socket: widget.socket,)),
               );
             },
             icon: Icon(Icons.person_add_alt_1, color: Colors.white,)
@@ -131,15 +165,32 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
                   final user = filteredUsers[index];
                   return ListTile(
                     leading: CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(user["name"] ?? ""),
-                    subtitle: Text(user["phone"] ?? ""),
+                    title: Text(user.hoTen ?? ""),
+                    subtitle: Text(user.tenDangNhap ?? ""),
                     trailing: IconButton(
                       onPressed: (){
-                        // TODO: Gửi lời mời kết bạn...
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => Individualpage(
+                          chatModel: chats[index],
+                          sourchat: chats[index],
+                          currentUserId: widget.currentUser.maNguoiDung,
+                          receiverId: user.maNguoiDung,
+                          socket: widget.socket,
+                        )));
                       },
                       icon: Icon(Icons.chat_bubble_outline_rounded)),
                     onTap: () {
-                      // TODO: Mở hồ sơ bạn bè
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => Individualpage(
+                          chatModel: chats[index],
+                          sourchat: chats[index],
+                          currentUserId: widget.currentUser.maNguoiDung,
+                          receiverId: user.maNguoiDung,
+                          socket: widget.socket,
+                        ),)
+                      );
                     },
                   );
                 },

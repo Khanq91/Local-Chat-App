@@ -222,7 +222,7 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => SearchGrouporfriendScreen()),
+                MaterialPageRoute(builder: (context) => SearchGrouporfriendScreen(currentUser: widget.currentUser, socket: socketConnect,)),
               );
             },
             icon: Icon(Icons.search, color: AppColors.bodyBG,)
@@ -231,7 +231,7 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SearchGrouporfriendScreen()),
+              MaterialPageRoute(builder: (context) => SearchGrouporfriendScreen(currentUser: widget.currentUser, socket: socketConnect,)),
             );
           },
           child: Text(
@@ -248,7 +248,7 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
             onSelected: (value) {
               if (value == "add_friend") {
                 print("add_friend");
-                Navigator.push(context, MaterialPageRoute(builder: (context) => AddFriendScreen()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => AddFriendScreen(currentUser: widget.currentUser, socket: socketConnect,)));
               } else if (value == "create_group") {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => CreateGroupPages()));
               }

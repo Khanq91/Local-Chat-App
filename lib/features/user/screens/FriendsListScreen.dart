@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:nhan_tin_noi_bo/features/chat/screens/IndividualPage.dart';
 import 'package:provider/provider.dart';
 import 'package:realm/realm.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import '../../../core/utils/FriendWithStatus.dart';
-import '../../../core/utils/connection.dart';
 import '../../../core/utils/FriendsStatusProvider.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/realm/realm_models/models.dart';
