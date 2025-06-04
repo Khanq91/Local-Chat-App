@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:nhan_tin_noi_bo/data/realm/realm_models/models.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
-import 'package:nhan_tin_noi_bo/features/auth/screens/SignIn.dart';
 import 'package:realm/realm.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import '../../../core/utils/connection.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/model/chatmodel.dart';
 import '../../../data/realm/realm_services/realm.dart';
 import '../../chat/screens/CreateGroupPages.dart';
 import '../../chat/screens/IndividualPage.dart';
-import '../../chat/widgets/CustomCard.dart';
 
 class SearchGrouporfriendScreen extends StatefulWidget {
   final NguoiDung currentUser;
@@ -170,14 +167,17 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
                     trailing: IconButton(
                       onPressed: (){
                         Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => Individualpage(
-                          chatModel: chats[index],
-                          sourchat: chats[index],
-                          currentUserId: widget.currentUser.maNguoiDung,
-                          receiverId: user.maNguoiDung,
-                          socket: widget.socket,
-                        )));
+                          context,
+                          MaterialPageRoute(builder: (context) =>
+                            Individualpage(
+                              chatModel: chats[index],
+                              sourchat: chats[index],
+                              currentUserId: widget.currentUser.maNguoiDung,
+                              receiverId: user.maNguoiDung,
+                              socket: widget.socket,
+                            )
+                          )
+                        );
                       },
                       icon: Icon(Icons.chat_bubble_outline_rounded)),
                     onTap: () {

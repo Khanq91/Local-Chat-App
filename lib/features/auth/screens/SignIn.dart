@@ -49,24 +49,53 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  // void _onLoginSuccess(NguoiDung user) {
+  //   Navigator.pushAndRemoveUntil(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (context) => MultiProvider(
+  //         providers: [
+  //           ChangeNotifierProvider(
+  //             create: (_) => FriendsProvider(
+  //               currentUser: user,
+  //               realm: RealmService().realm,
+  //             ),
+  //           ),
+  //           ChangeNotifierProvider(
+  //             create: (_) => SocketService(
+  //               currentUserId: user.maNguoiDung,
+  //               realm: realm,
+  //             ),
+  //           ),
+  //         ],
+  //         child: Home_Screen(currentUser: currentUser),
+  //       ),
+  //     ),
+  //     (route) => false,
+  //   );
+  // }
   void _onLoginSuccess(NguoiDung user) {
-    Navigator.pushReplacement(
+    final realm = RealmService().realm;
+    final socketService = SocketService();
+    socketService.connect(user.maNguoiDung, realm);
+
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
         builder: (context) => MultiProvider(
           providers: [
             ChangeNotifierProvider(
-              create: (_) => FriendsProvider(
-                currentUser: user,
-                realm: RealmService().realm,
-              ),
+              create: (_) => FriendsProvider(currentUser: user, realm: realm),
             ),
+            Provider.value(value: socketService),
           ],
-          child: Home_Screen(currentUser: currentUser),
+          child: Home_Screen(currentUser: user),
         ),
       ),
+          (route) => false,
     );
   }
+
 
   @override
   void initState() {
