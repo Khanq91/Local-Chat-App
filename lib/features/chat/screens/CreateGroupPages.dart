@@ -460,11 +460,19 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                     ),
                     FloatingActionButton(
                       onPressed: () {
+                      if(selectedUsers.length<2){
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Vui lòng chọn ít nhất 2 thành viên"))
+                        );
+                        return;
+                      }else{
                         selectedUsers.forEach((user) {
                           AddToGroupId.add(user.maNguoiDung);
                           final List<String> AddtoGroupID_ToString = AddToGroupId.map((id) => id.toString()).toList();
                           Navigator.push(context ,MaterialPageRoute(builder: (builder) => Grouppage( currentUserId: widget.currentUserId,receiverId_ToString:AddtoGroupID_ToString,socket: widget.socket,)));
                         });
+                      }
+
                       },
                       mini: true,
                       backgroundColor: Colors.blue,
