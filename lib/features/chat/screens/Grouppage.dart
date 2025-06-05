@@ -1,0 +1,811 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:path/path.dart' as path;
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:nhan_tin_noi_bo/features/chat/widgets/Chats/OwnMessageCard.dart';
+import 'package:nhan_tin_noi_bo/features/settings/screens/SettingsOwn.dart';
+import 'package:nhan_tin_noi_bo/config/IPconfig.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:realm/realm.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../../../data/model/Message/MessageModel.dart';
+import '../../../data/model/chatmodel.dart';
+
+import '../../../data/realm/realm_models/models.dart';
+import '../../../data/realm/realm_services/realm.dart';
+import '../widgets/Files/OwnFileCard.dart';
+import '../widgets/Files/ReplyFileCard.dart';
+import '../widgets/ImagePicker/ImagePickerSheet.dart';
+import '../widgets/ImagePicker/OwnImageCard .dart';
+import '../widgets/ImagePicker/ReplyImageCard.dart';
+import '../widgets/Chats/ReplyCard.dart';
+
+class Grouppage extends StatefulWidget {
+  const Grouppage({
+    super.key,
+    required this.currentUserId,
+    required this.receiverId_ToString,
+    required this.socket,
+  });
+  final ObjectId  currentUserId;
+  final  List<String>  receiverId_ToString;
+  final IO.Socket socket;
+  @override
+  State<Grouppage> createState() => _GrouppageState();
+}
+
+class _GrouppageState extends State<Grouppage> {
+  TextEditingController _controller = TextEditingController();
+  FocusNode _focusNode = FocusNode();
+  ScrollController _scrollController = ScrollController();
+
+  String? selectedFileName;
+  File? Docfile;
+  bool ShowEmoji = false;
+  bool CheckValueInput = false;
+  bool isImagePickerShown = false;
+  bool IsLoadImages = false;
+  bool IsLoadFiles = false;
+  bool SentButton = false;
+  bool _isSafeToExit = true;
+  late ChatModel chatModel;
+
+  double bottomInset = 0;
+  double bottomSheetHeight = 0.3;
+  String selectedFilePath='';
+
+  List<XFile> ImagePath = [];
+  List<AssetEntity> allImages = [];
+  List<MessageModel> messages = [];
+  final List<Map<String, dynamic>> _pendingMessages = [];
+  List<AssetEntity> selectedImagesFromSheet = [];
+  final realm = RealmService().realm;
+  late RealmResults<TinNhanCaNhan> results;
+  late StreamSubscription<RealmResultsChanges<TinNhanCaNhan>> _realmSubscription;
+  late List<ObjectId> receiverId=[];
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    results = realm.all<TinNhanCaNhan>();
+    receiverId = widget.receiverId_ToString.map((s) => ObjectId.fromHexString(s)).toList();
+    final NguoiDung? nguoidung = realm.query<NguoiDung>('maNguoiDung == \$0', [widget.currentUserId]).firstOrNull;
+    chatModel=ChatModel(
+        name: nguoidung?.hoTen ?? nguoidung?.tenDangNhap ?? 'Không rõ',
+        avatar: 'assets/images/meme.jpg',
+        isGroup: true,
+        time: '',
+        currentMessage: '',
+        id: nguoidung!.maNguoiDung
+    );
+    widget.socket.on("message", _handleIncomingMessage);
+    realm.query<TinNhanCaNhan>('maNguoiGui == \$0 AND maNguoiNhan IN \$1', [widget.currentUserId, receiverId]);
+
+    _realmSubscription = results.changes.listen((changes) {
+      setState(() {
+        messages = results.map((tinNhan) {
+          if (tinNhan.maNguoiGui.toString() == widget.currentUserId.toString())
+          {
+            return MessageModel(
+              type: "source",
+              message: tinNhan.noiDung,
+              time: tinNhan.thoiGianGui.toString().substring(10, 16),
+              path: tinNhan.duongDanAnh,
+              isPinned: tinNhan.ghim,
+            );
+          }
+          else
+          {
+            return MessageModel(
+              type: "destination",
+              message: tinNhan.noiDung,
+              time: tinNhan.thoiGianGui.toString().substring(10, 16),
+              path: tinNhan.duongDanAnh,
+              isPinned: tinNhan.ghim,
+            );
+          }
+        }).toList();
+      });
+    });
+
+    _controller.addListener(() {
+      setState(() {
+        CheckValueInput = _controller.text.trim().isNotEmpty;
+      });
+    });
+
+  }
+  @override
+  void dispose() {
+    widget.socket.off("message", _handleIncomingMessage);
+    Future.delayed(Duration(milliseconds: 200), () {
+      _realmSubscription.cancel();
+    });
+    super.dispose();
+  }
+
+  void _showMessageOptionsDialog(BuildContext context, MessageModel message) {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (_) => Wrap(
+        children: [
+          ListTile(
+            leading: Icon(Icons.push_pin),
+            title: Text('Ghim tin nhắn'),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() {
+                // chỉ cho phép tối đa 3 tin nhắn được ghim
+                if (messages.where((m) => m.isPinned).length < 3) {
+                  message.isPinned = true;
+                }
+              });
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete),
+            title: Text('Xóa tin nhắn'),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() {
+                messages.remove(message);
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void ControllerNewMessage() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  // void connect() {
+  //   socket = IO.io("http://${AppConfig.baseUrl}:5000", <String, dynamic>{
+  //     "transports": ["websocket"],
+  //     "autoConnect": true,
+  //   });
+  //   socket?.connect();
+  //   socket?.onConnect((data) {
+  //     socket?.emit("signin", widget.currentUserId.toString());
+  //     print("Connected");
+  //     // socket?.on("message", (msg) {
+  //     //   print(msg);
+  //     //   // setMessage("destination", msg["message"], msg["path"]);
+  //     //   setMessage(msg["sourceId"], msg["message"], msg["path"]);
+  //     //   ControllerNewMessage();
+  //     // });
+  //     socket?.on("message", (msg) {
+  //       final isMe = msg["sourceId"] == widget.currentUserId.toString();
+  //
+  //       setMessage(
+  //         isMe ? "source" : "destination",
+  //         msg["message"],
+  //         msg["path"],
+  //       );
+  //
+  //       ControllerNewMessage();
+  //     });
+  //   });
+  //   print(socket?.connected);
+  // }
+  void _handleIncomingMessage(dynamic msg) {
+    bool isMe = msg["sourceId"] == widget.currentUserId.toString();
+
+    setMessage(
+      isMe ? "source" : "destination",
+      msg["message"],
+      msg["path"],
+    );
+    saveMessageToDB(msg);
+    ControllerNewMessage();
+  }
+
+  void sendMessage(String message, ObjectId sourceId, List<ObjectId> targetIds, String path) {
+    if (widget.socket != null && widget.socket!.connected) {
+      setMessage("source", message, path);
+
+      for (final receiverId in targetIds) {
+        widget.socket!.emit("message", {
+          "message": message,
+          "sourceId": sourceId.toString(),
+          "targetId": receiverId.toString(), // Gửi đúng từng người nhận
+          "path": path,
+        });
+      }
+    } else {
+      print("Socket not connected!");
+    }
+  }
+  void setMessage(String type, String message, String path) {
+    MessageModel messageModel = MessageModel(
+      message: message,
+      type: type,
+      path: path,
+      time: DateTime.now().toString().substring(10, 16),
+      isPinned: false,
+    );
+    setState(() {
+      messages.add(messageModel);
+    });
+  }
+
+  // void saveMessageToDB(Map<String, dynamic> data) async {
+  //   _pendingMessages.add(data);
+  //   if (_isSaving) return;
+  //
+  //   _isSaving = true;
+  //   while (_pendingMessages.isNotEmpty) {
+  //     final current = _pendingMessages.removeAt(0);
+  //     try {
+  //       final NguoiDung? nguoiGui = realm.find<NguoiDung>(ObjectId.fromHexString(current["sourceId"]));
+  //       final NguoiDung? nguoiNhan = realm.find<NguoiDung>(ObjectId.fromHexString(current["targetId"]));
+  //
+  //       if (nguoiGui == null || nguoiNhan == null) {
+  //         print("❌ Không tìm thấy người gửi hoặc người nhận.");
+  //         continue;
+  //       }
+  //
+  //       realm.write(() {
+  //         final tinNhan = TinNhanCaNhan(
+  //             ObjectId(),
+  //             current["message"],
+  //             "text",
+  //             DateTime.now(),
+  //             '',
+  //             ObjectId.fromHexString(current["sourceId"]),
+  //             ObjectId.fromHexString(current["targetId"])
+  //         );
+  //         tinNhan.nguoiGui = nguoiGui;
+  //         tinNhan.nguoiNhan = nguoiNhan;
+  //         tinNhan.ghim = false;
+  //         tinNhan.thoiGianGui = DateTime.now();
+  //         tinNhan.maNguoiGui = ObjectId.fromHexString(current["sourceId"]);
+  //         tinNhan.maNguoiNhan = ObjectId.fromHexString(current["targetId"]);
+  //         realm.add(tinNhan);
+  //       });
+  //
+  //       print("✅ Lưu tin nhắn: ${current["message"]} [id: ${data["sourceId"].toString()} to id: ${data["targetId"].toString()}]");
+  //     } catch (e) {
+  //       print("❌ Lỗi khi lưu tin nhắn: $e");
+  //     }
+  //   }
+  //
+  //   _isSaving = false;
+  // }
+
+  void saveMessageToDB(Map<String, dynamic> data) {
+    _isSafeToExit = false;
+    final NguoiDung? nguoiGui = realm.find<NguoiDung>(ObjectId.fromHexString(data["sourceId"]));
+    final NguoiDung? nguoiNhan = realm.find<NguoiDung>(ObjectId.fromHexString(data["targetId"]));
+
+    if (nguoiGui == null || nguoiNhan == null) {
+      print("❌ Không tìm thấy người gửi hoặc người nhận.");
+      return;
+    }
+
+    // realm.write(() {
+    //   final tinNhan = TinNhanCaNhan(
+    //     ObjectId(),
+    //     data["message"],
+    //     "text",
+    //     DateTime.now(),
+    //     data["path"] ?? '',
+    //     ObjectId.fromHexString(data["sourceId"]),
+    //     ObjectId.fromHexString(data["targetId"]),
+    //   );
+    //   tinNhan.nguoiGui = nguoiGui;
+    //   tinNhan.nguoiNhan = nguoiNhan;
+    //   tinNhan.ghim = false;
+    //   tinNhan.thoiGianGui = DateTime.now();
+    //   tinNhan.maNguoiGui = ObjectId.fromHexString(data["sourceId"]);
+    //   tinNhan.maNguoiNhan = ObjectId.fromHexString(data["targetId"]);
+    //
+    //   realm.add(tinNhan);
+    // });
+
+    print("✅ Lưu tin nhắn ngay: ${data["message"]}");
+    _isSafeToExit = true;
+  }
+
+  // Gửi ảnh lên sever
+  Future<List<String>> sendImageSend(
+      List<AssetEntity> selectedImagesFromSheet,
+      ) async {
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("http://${AppConfig.baseUrl}:5000/routes/addimage"),
+    );
+
+    if(selectedImagesFromSheet.isNotEmpty && selectedImagesFromSheet!=null){
+      for (AssetEntity asset in selectedImagesFromSheet) {
+        File? file = await asset.file;
+        if (file != null) {
+          request.files.add(await http.MultipartFile.fromPath("img", file.path));
+        }
+      }
+    }
+
+    request.headers.addAll({"Content-type": "multipart/form-data"});
+
+    http.StreamedResponse response = await request.send();
+    var httResponse = await http.Response.fromStream(response);
+    var data = json.decode(httResponse.body);
+
+    if (response.statusCode == 200 && data['path'] != null) {
+      List<String> serverPaths = List<String>.from(data['path']);
+      for (String serverPath in serverPaths) {
+        SaveFileToRealm(serverPath);
+      }
+      return serverPaths;
+
+    } else {
+      return [];
+    }
+  }
+  Future<List<String>> sendFileSend(File file) async {
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("http://${AppConfig.baseUrl}:5000/routes/addimage"),
+    );
+
+    // Đặt tên file tùy ý, ví dụ giữ đuôi cũ
+    String newFileName = "upload_${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}";
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        "img",
+        file.path,
+        filename: newFileName,
+      ),
+    );
+
+    request.headers.addAll({"Content-type": "multipart/form-data"});
+
+    http.StreamedResponse response = await request.send();
+    var httpResponse = await http.Response.fromStream(response);
+    var data = json.decode(httpResponse.body);
+    if (response.statusCode == 200 && data['path'] != null) {
+      List<String> uploadedPaths = List<String>.from(data['path']);
+      for (String serverPath in uploadedPaths) {
+        SaveFileToRealm(serverPath);
+      }
+
+      return List<String>.from(data['path']);
+    } else {
+      print("Upload thất bại: ${response.statusCode}, body: ${httpResponse.body}");
+      return [];
+    }
+  }
+
+
+  // Load Ảnh
+  Future<void> LoadAllImages() async {
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    List<AssetPathEntity> albums = [];
+
+    if (ps.isAuth || ps.hasAccess) {
+      albums = await PhotoManager.getAssetPathList(
+        onlyAll: true,
+        type: RequestType.all,
+      );
+    }
+
+    if (albums.isNotEmpty) {
+      List<AssetEntity> media = await albums[0].getAssetListPaged(
+        page: 0,
+        size: 100,
+      );
+      setState(() {
+        allImages = media;
+      });
+    } else {
+      PhotoManager.openSetting();
+    }
+  }
+
+  void pickAnyFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+    );
+    if (result != null && result.files.isNotEmpty) {
+      PlatformFile file = result.files.first;
+
+      if (file.path != null) {
+        File selectedFile = File(file.path!);
+
+        List<String> uploadedPaths = await sendFileSend(selectedFile);
+
+        if (uploadedPaths.isNotEmpty) {
+          String serverPath = uploadedPaths.first;
+          for(final r in receiverId){
+            sendMessage(
+              "", // nội dung text có thể để rỗng
+              widget.currentUserId,
+              receiverId,
+              serverPath, // path của file trên server
+            );
+          };
+        }
+      }
+    } else {
+      print('Không chọn file nào');
+    }
+  }
+
+  String formatBytes(int bytes) {
+    if (bytes < 1024) return "$bytes B";
+    else if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(2)} KB";
+    else return "${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB";
+  }
+  String getLoaiTep(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif')) {
+      return "image";
+    } else {
+      return "file";
+    }
+  }
+
+  // Luu data file  vao realm
+  void SaveFileToRealm(String path) {
+    final fileName = path.split('/').last; // Lấy tên file từ path
+    final loaiTep = getLoaiTep(fileName);  // Phân loại ảnh hay file
+
+    final tep = TepDinhKemCaNhan(
+      ObjectId(),
+      loaiTep,
+      fileName,
+      path,
+    );
+
+    // Lưu vào Realm
+    realm.write(() {
+      realm.add(tep);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    print(widget.currentUserId);
+    // print(widget.receiverId);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Color(0xFFD9E2ED),
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        leading: IconButton(
+          onPressed: () async {
+            while (!_isSafeToExit) {
+              await Future.delayed(Duration(milliseconds: 100));
+            }
+            Navigator.pop(context);
+          },
+          // onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              chatModel.name,
+              style: TextStyle(fontSize: 18, color: Colors.white),
+            ),
+            Text(
+              "Đang hoạt động",
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: Icon(Icons.phone, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: Icon(Icons.videocam, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder:
+                      (context, animation, secondaryAnimation) => SettingsOwn(),
+                  transitionsBuilder: (
+                      context,
+                      animation,
+                      secondaryAnimation,
+                      child,
+                      ) {
+                    const begin = Offset(1.0, 0.0);
+                    const end = Offset.zero;
+                    const curve = Curves.ease;
+                    final tween = Tween(
+                      begin: begin,
+                      end: end,
+                    ).chain(CurveTween(curve: curve));
+
+                    return SlideTransition(
+                      position: animation.drive(tween),
+                      child: child,
+                    );
+                  },
+                ),
+              );
+            },
+            icon: Icon(Icons.menu, color: Colors.white),
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          setState(() {
+            ShowEmoji = false;
+            IsLoadImages = false;
+          });
+        },
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                shrinkWrap: true,
+                itemCount: messages.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == messages.length) {
+                    return Container(height: 70);
+                  }
+
+                  final message = messages[index];
+                  final isSource = message.type == "source";
+                  final String path = message.path;
+                  final bool hasImage = path.endsWith(".jpg") ||
+                      path.endsWith(".png") ||
+                      path.endsWith(".jpeg") ||
+                      path.endsWith(".gif");
+                  final bool hasFile = !hasImage && path.isNotEmpty;
+                  Widget messageWidget;
+
+                  if (isSource) {
+                    if (hasImage) {
+                      messageWidget = OwnImageCard(
+                        path: [message.path],
+                        time: message.time,
+                      );
+                    } else if (hasFile) {
+                      messageWidget = OwnFileCard(fileName:message.path,time: message.time,);
+                    } else {
+                      messageWidget = OwnMessageCard(
+                        message: message.message,
+                        time: message.time,
+                      );
+                    }
+                  } else {
+                    if (hasImage) {
+                      messageWidget = ReplyImageCard(
+                        path: [message.path],
+                        time: message.time,
+                      );
+                    } else if (hasFile) {
+                      messageWidget = Replyfilecard(fileName:message.path,time: message.time,);
+
+                    } else {
+                      messageWidget = ReplyCard(
+                        message: message.message,
+                        time: message.time,
+                      );
+                    }
+                  }
+
+                  return GestureDetector(
+                    onLongPress: () => _showMessageOptionsDialog(context, message),
+                    child: messageWidget,
+                  );
+                },
+              ),
+              // child: ListView(
+              //   children: [
+              //     OwnFileCard(
+              //       fileName: "tailieu.ppt",
+              //       fileSize: "1.2 MB",
+              //       time: "9:21",
+              //     ),
+              //     ReplyFilecard(
+              //       fileName: "tailieu.ppt",
+              //       fileSize: "1.2 MB",
+              //       time: "9:21",
+              //     ),
+              //   ],
+              // ),
+            ),
+            // Thanh nhập tin nhắn
+            AnimatedContainer(
+              duration: Duration(milliseconds: 300),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  if (ImagePath.isEmpty) ...[
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          ControllerNewMessage();
+                          ShowEmoji = !ShowEmoji;
+                          IsLoadImages = false;
+                          if (ShowEmoji) {
+                            _focusNode.unfocus();
+                          } else {
+                            _focusNode.requestFocus();
+                          }
+                        });
+                      },
+                      icon: Icon(
+                        Icons.emoji_emotions_outlined,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        maxLines: 5,
+                        minLines: 1,
+                        onChanged: (value) {
+                          if (value.length > 0) {
+                            setState(() {
+                              SentButton = true;
+                            });
+                          } else {
+                            setState(() {
+                              SentButton = false;
+                            });
+                          }
+                        },
+                        decoration: const InputDecoration(
+                          hintText: "Tin nhắn",
+                          border: InputBorder.none,
+                        ),
+                        style: const TextStyle(fontSize: 16),
+                        onTap: () {
+                          setState(() {
+                            ShowEmoji = false;
+                            IsLoadImages = false;
+                          });
+                        },
+                      ),
+                    ),
+                  ] else ...[
+                    Expanded(child: Row()),
+                  ],
+                  if (CheckValueInput ||
+                      ImagePath.length > 0 ||
+                      selectedImagesFromSheet.length > 0)
+                    IconButton(
+                      icon: const Icon(Icons.send, color: Colors.blue),
+                      onPressed: () async {
+                        if (selectedImagesFromSheet.isNotEmpty) {
+                          List<String> serverPaths = await sendImageSend(
+                              selectedImagesFromSheet
+                          );
+                          for (String serverPath in serverPaths) {
+                            sendMessage(
+                              "",
+                              widget.currentUserId,
+                              receiverId,
+                              serverPath,
+                            );
+                          }
+                        }
+
+                        if (_controller.text.trim().isNotEmpty) {
+                          sendMessage(
+                            _controller.text.trim(),
+                            widget.currentUserId,
+                            receiverId,
+                            "",
+                          );
+                        }
+                        setState(() {
+                          _controller.clear();
+                          selectedImagesFromSheet.clear();
+                          ImagePath.clear();
+                          selectedFileName = null;
+                          CheckValueInput = false;
+                          SentButton = false;
+                          IsLoadImages = false;
+                          IsLoadFiles = false;
+                        });
+
+                        ControllerNewMessage();
+                      },
+                    )
+                  else ...[
+                    IconButton(
+                      icon: const Icon(Icons.mic_outlined, color: Colors.grey),
+                      onPressed: () {
+                        // Ghi âm
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.file_copy, color: Colors.grey),
+                      onPressed: () {
+                        setState(() {
+                          ShowEmoji = false;
+                          IsLoadFiles = !IsLoadFiles;
+                          _focusNode.unfocus();
+                        });
+                        pickAnyFile();
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.image, color: Colors.orange),
+                      onPressed: () async {
+                        await LoadAllImages();
+                        setState(() {
+                          ControllerNewMessage();
+                          ShowEmoji = false;
+                          IsLoadImages = !IsLoadImages;
+                          _focusNode.unfocus();
+                        });
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Emoji picker
+            if (ShowEmoji) emojiSelect(),
+            if (IsLoadImages)
+              Imagepickersheet(
+                allImages: allImages,
+                onImageSelectionChanged: (
+                    List<AssetEntity> selectedImages,
+                    ) async {
+                  setState(() {
+                    selectedImagesFromSheet = selectedImages;
+                  });
+                  List<File?> files = await Future.wait(
+                    selectedImages.map((e) => e.file),
+                  );
+                  List<String> paths =
+                  files.whereType<File>().map((file) => file.path).toList();
+                  print("Đã chọn ${paths.length} ảnh với đường dẫn:");
+                  for (var path in paths) {
+                    print(path);
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  Widget emojiSelect() {
+    return EmojiPicker(
+      onEmojiSelected: (category, emoji) {
+        setState(() {
+          _controller.text += emoji.emoji;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: _controller.text.length),
+          );
+        });
+      },
+    );
+  }
+}
+

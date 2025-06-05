@@ -1,14 +1,22 @@
 import 'dart:io';
+import 'dart:io' as IO;
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:realm/realm.dart';
 
 import '../../../data/model/User.dart';
 import '../../../data/model/assets.dart';
+import '../../../data/realm/realm_models/models.dart';
+import '../../../data/realm/realm_services/realm.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+import 'Grouppage.dart';
 
 class CreateGroupPages extends StatefulWidget {
-  const CreateGroupPages({super.key});
-
+  const CreateGroupPages({super.key, required this.currentUserId, required this.socket,});
+  final ObjectId currentUserId;
+  final IO.Socket socket;
   @override
   State<CreateGroupPages> createState() => _CreateGroupPagesState();
 }
@@ -23,62 +31,10 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
   Set<User> selectedUsers = {};
   List<String> selectedFriends = [];
   List<String> filteredFriends = [];
-
+  List<User> danhSachUser = [];
   File? groupAvatar;
   String? _assetAvatar;
-
-  List<User> users = [
-    User(
-      name: 'Trần Tiến',
-      time: '1 phút trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(name: 'Nhi', time: '31 phút trước', avatar: 'assets/images/meme.jpg'),
-    User(
-      name: 'Văn Liêm',
-      time: '1 giờ trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(
-      name: 'Hải Nam',
-      time: '1 giờ trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(
-      name: 'Thành Trần',
-      time: '2 giờ trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(name: 'Huy', time: '2 giờ trước', avatar: 'assets/images/meme.jpg'),
-    User(
-      name: 'Nhật Nguyễn',
-      time: '2 giờ trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(name: 'Khang', time: '3 giờ trước', avatar: 'assets/images/meme.jpg'),
-    User(name: 'Xuân', time: '3 giờ trước', avatar: 'assets/images/meme.jpg'),
-  ];
-
-  List<User> friends = [
-    User(name: 'Bình', time: '3 ngày trước', avatar: 'assets/images/meme.jpg'),
-    User(
-      name: 'Anh Tuấn',
-      time: '2 ngày trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(
-      name: 'Hải Nam',
-      time: '1 giờ trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-    User(name: 'Cường', time: '1 tuần trước', avatar: 'assets/images/meme.jpg'),
-    User(name: 'Dũng', time: '1 tháng trước', avatar: 'assets/images/meme.jpg'),
-    User(
-      name: 'Văn Liêm',
-      time: '1 giờ trước',
-      avatar: 'assets/images/meme.jpg',
-    ),
-  ];
+  List<ObjectId> AddToGroupId = [];
 
   void _pickImage() async {
     final picker = ImagePicker();
@@ -89,6 +45,37 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
         _assetAvatar = null;
       });
     }
+  }
+
+  @override
+  void initState() {
+    final Realm realm = RealmService().realm;
+    super.initState();
+    AddToGroupId.add(widget.currentUserId);
+    List<KetBan> Ds_KetBan =
+    realm
+        .all<KetBan>()
+        .where(
+          (ketBan) =>
+      ketBan.trangThai == 'accepted' &&
+          (ketBan.nguoiGui?.maNguoiDung == widget.currentUserId ||
+              ketBan.nguoiNhan?.maNguoiDung == widget.currentUserId),
+    )
+        .toList();
+    danhSachUser =
+        Ds_KetBan.map((ketBan) {
+          final isNguoiGui =
+              ketBan.nguoiGui?.maNguoiDung == widget.currentUserId;
+          final otherUser = isNguoiGui ? ketBan.nguoiNhan : ketBan.nguoiGui;
+          ObjectId id = isNguoiGui ? ketBan.maNguoiNhan : ketBan.maNguoiGui;
+          return User(
+            maNguoiDung: id,
+            name: otherUser?.hoTen ?? 'Không tên',
+            time:
+            '1 phút trước', // Tuỳ Khai muốn xử lý thời gian hay để cố định
+            avatar: otherUser?.anhDaiDien ?? 'assets/images/default_avatar.jpg',
+          );
+        }).toList();
   }
 
   void _showAvatarPicker(BuildContext context) {
@@ -104,7 +91,10 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Chọn ảnh nhóm", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                "Chọn ảnh nhóm",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               SizedBox(height: 12),
 
               // Hàng hiển thị các ảnh mặc định
@@ -114,8 +104,8 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                   scrollDirection: Axis.horizontal,
                   itemCount: 5,
                   itemBuilder: (context, index) {
-                    // String assetPath = 'assets/default_avatars/group_${index + 1}.png';
-                    String assetPath = '${AppImages.baseAvatarPath}group_${index + 1}.png';
+                    String assetPath =
+                        '${AppImages.baseAvatarPath}group_${index + 1}.png';
                     return GestureDetector(
                       onTap: () {
                         Navigator.pop(context);
@@ -131,7 +121,9 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                             assetPath,
                             width: 50,
                             height: 50,
-                            fit: BoxFit.contain, // hoặc try BoxFit.fitWidth nếu ảnh cân
+                            fit:
+                            BoxFit
+                                .contain, // hoặc try BoxFit.fitWidth nếu ảnh cân
                           ),
                         ),
                       ),
@@ -160,17 +152,8 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    friends.sort(
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final currentList = _isRecentTab ? users : friends;
-
+    final currentList = danhSachUser;
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -236,19 +219,19 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                     child: CircleAvatar(
                       radius: 32,
                       backgroundColor: AppColors.bodyBG,
-                      backgroundImage: groupAvatar != null
+                      backgroundImage:
+                      groupAvatar != null
                           ? FileImage(groupAvatar!)
                           : _assetAvatar != null
                           ? AssetImage(_assetAvatar!) as ImageProvider
                           : null,
-                      child: (groupAvatar == null && _assetAvatar == null)
+                      child:
+                      (groupAvatar == null && _assetAvatar == null)
                           ? Icon(Icons.camera_alt, color: Colors.grey[300])
                           : null,
                     ),
                   ),
-
-                  SizedBox(width: 18,),
-
+                  SizedBox(width: 18),
                   Expanded(
                     child: TextField(
                       controller: _groupNameController,
@@ -260,7 +243,7 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                         border: InputBorder.none,
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -272,7 +255,9 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 keyboardType:
-                isNumericKeyboard ? TextInputType.number : TextInputType.text,
+                isNumericKeyboard
+                    ? TextInputType.number
+                    : TextInputType.text,
                 decoration: InputDecoration(
                   prefixIcon: Icon(Icons.search),
                   hintText: "Tìm tên hoặc số điện thoại",
@@ -318,7 +303,7 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                           });
                         },
                         child: Text(
-                          "GẦN ĐÂY",
+                          "DANH BẠ",
                           style: TextStyle(
                             color: Colors.black54,
                             fontWeight:
@@ -328,40 +313,40 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                           ),
                         ),
                       ),
-                      Container(
-                        height: 2,
-                        color: _isRecentTab ? Colors.blue : Colors.transparent,
-                      ),
+                      // Container(
+                      //   height: 2,
+                      //   color: _isRecentTab ? Colors.blue : Colors.transparent,
+                      // ),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _isRecentTab = false;
-                          });
-                        },
-                        child: Text(
-                          "DANH BẠ",
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontWeight:
-                            _isRecentTab
-                                ? FontWeight.normal
-                                : FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        height: 2,
-                        color: !_isRecentTab ? Colors.blue : Colors.transparent,
-                      ),
-                    ],
-                  ),
-                ),
+                // Expanded(
+                //   child: Column(
+                //     children: [
+                //       TextButton(
+                //         onPressed: () {
+                //           setState(() {
+                //             _isRecentTab = false;
+                //           });
+                //         },
+                //         child: Text(
+                //           "DANH BẠ",
+                //           style: TextStyle(
+                //             color: Colors.black54,
+                //             fontWeight:
+                //             _isRecentTab
+                //                 ? FontWeight.normal
+                //                 : FontWeight.bold,
+                //           ),
+                //         ),
+                //       ),
+                //       Container(
+                //         height: 2,
+                //         color: !_isRecentTab ? Colors.blue : Colors.transparent,
+                //       ),
+                //     ],
+                //   ),
+                // ),
               ],
             ),
             // Danh sách người dùng
@@ -371,7 +356,6 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                 itemBuilder: (context, index) {
                   final user = currentList[index];
                   final isSelected = selectedUsers.contains(user);
-
                   return ListTile(
                     leading: CircleAvatar(
                       radius: 20,
@@ -476,7 +460,11 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                     ),
                     FloatingActionButton(
                       onPressed: () {
-                        // TODO: Tạo nhóm tại đây
+                        selectedUsers.forEach((user) {
+                          AddToGroupId.add(user.maNguoiDung);
+                          final List<String> AddtoGroupID_ToString = AddToGroupId.map((id) => id.toString()).toList();
+                          Navigator.push(context ,MaterialPageRoute(builder: (builder) => Grouppage( currentUserId: widget.currentUserId,receiverId_ToString:AddtoGroupID_ToString,socket: widget.socket,)));
+                        });
                       },
                       mini: true,
                       backgroundColor: Colors.blue,
@@ -487,7 +475,7 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
               ),
           ],
         ),
-      )
+      ),
     );
   }
 }

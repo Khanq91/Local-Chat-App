@@ -74,27 +74,18 @@ class _LoginScreenState extends State<LoginScreen> {
     RealmService realmService = RealmService();
     clearAllRealmData(realm);
 
-    final nguoiGui = NguoiDung(
-      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"),
-      '1', '1', true, 'admin', DateTime.now(), hoTen: 'khanghah',
-    );
+    final nguoiGui = NguoiDung(ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"), '1', '1', true, 'admin', DateTime.now(), hoTen: 'khanghah',);
     RealmService().add<NguoiDung>(nguoiGui);
-    final nguoiNhan = NguoiDung(
-      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"),
-      '2', '2', true, 'admin', DateTime.now(), hoTen: 'khangheh',
+    final nguoiNhan = NguoiDung(ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"), '2', '2', true, 'admin', DateTime.now(), hoTen: 'khangheh',
+    );
+    final nguoiNhan1 = NguoiDung(ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"), '3', '3', true, 'admin', DateTime.now(), hoTen: 'latuine',
     );
     RealmService().add<NguoiDung>(nguoiNhan);
-    final nguoibar = NguoiDung(
-      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d91"),
-      '3', '3', true, 'admin', DateTime.now(), hoTen: 'khangh3h3',
+    final nguoibar = NguoiDung(ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d91"), '3', '3', true, 'admin', DateTime.now(), hoTen: 'khangh3h3',
     );
     RealmService().add<NguoiDung>(nguoibar);
 
-    final moiKetBan = KetBan(
-      ObjectId(),
-      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"),
-      ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"),
-      'accepted', DateTime.now(), nguoiGui: nguoiGui, nguoiNhan: nguoiNhan,);
+    final moiKetBan = KetBan(ObjectId(), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"), 'accepted', DateTime.now(), nguoiGui: nguoiGui, nguoiNhan: nguoiNhan,);
     RealmService().add<KetBan>(moiKetBan);
 
     var nguoiDung = realmService.realm.all<NguoiDung>();

@@ -20,6 +20,7 @@ class FriendsListScreen extends StatefulWidget {
 class _FriendsListScreenState extends State<FriendsListScreen> {
   late Realm realm;
   late final ObjectId currentUserId;
+  late final IO.Socket socket;
   // late List<NguoiDung> friends;
   // late List<FriendWithStatus> friends;
 
@@ -215,7 +216,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => CreateGroupPages(),
+                                builder: (context) => CreateGroupPages(currentUserId :currentUserId,  socket: widget.socket,),
                               ),
                             );
                           },

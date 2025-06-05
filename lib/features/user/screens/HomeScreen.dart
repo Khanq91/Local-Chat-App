@@ -250,7 +250,7 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
                 print("add_friend");
                 Navigator.push(context, MaterialPageRoute(builder: (context) => AddFriendScreen(currentUser: widget.currentUser, socket: socketConnect,)));
               } else if (value == "create_group") {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => CreateGroupPages()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => CreateGroupPages(currentUserId:currentUserId,  socket: socketConnect,)));
               }
             },
             itemBuilder: (BuildContext context) => [
