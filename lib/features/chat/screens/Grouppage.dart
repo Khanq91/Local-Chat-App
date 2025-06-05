@@ -31,10 +31,13 @@ class Grouppage extends StatefulWidget {
     required this.currentUserId,
     required this.receiverId_ToString,
     required this.socket,
+    required this.manhom
   });
+
   final ObjectId  currentUserId;
   final  List<String>  receiverId_ToString;
   final IO.Socket socket;
+  final ObjectId manhom;
   @override
   State<Grouppage> createState() => _GrouppageState();
 }
@@ -43,9 +46,13 @@ class _GrouppageState extends State<Grouppage> {
   TextEditingController _controller = TextEditingController();
   FocusNode _focusNode = FocusNode();
   ScrollController _scrollController = ScrollController();
-
   String? selectedFileName;
   File? Docfile;
+
+  final realm = RealmService().realm;
+  late RealmResults<TinNhanNhom> results;
+  late StreamSubscription<RealmResultsChanges<TinNhanNhom>> _realmSubscription;
+
   bool ShowEmoji = false;
   bool CheckValueInput = false;
   bool isImagePickerShown = false;
@@ -53,7 +60,10 @@ class _GrouppageState extends State<Grouppage> {
   bool IsLoadFiles = false;
   bool SentButton = false;
   bool _isSafeToExit = true;
+
+  late int soLuongThanhVien;
   late ChatModel chatModel;
+  late NhomChat nhomChat;
 
   double bottomInset = 0;
   double bottomSheetHeight = 0.3;
@@ -62,21 +72,26 @@ class _GrouppageState extends State<Grouppage> {
   List<XFile> ImagePath = [];
   List<AssetEntity> allImages = [];
   List<MessageModel> messages = [];
-  final List<Map<String, dynamic>> _pendingMessages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
-  final realm = RealmService().realm;
-  late RealmResults<TinNhanCaNhan> results;
-  late StreamSubscription<RealmResultsChanges<TinNhanCaNhan>> _realmSubscription;
   late List<ObjectId> receiverId=[];
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    results = realm.all<TinNhanCaNhan>();
+    nhomChat = realm.find<NhomChat>(widget.manhom)!;
+    results = realm.query<TinNhanNhom>('nhom.maNhom == \$0 SORT(thoiGianGui DESC)', [widget.manhom]);
+    List<ThanhVienNhom> danhSachThanhVien = realm.query<ThanhVienNhom>('nhom.maNhom == \$0', [widget.manhom]).toList();
+      print("Danh sach ID nhom");
+     danhSachThanhVien.forEach((tv) {
+      print("ID các thanh vien nhom:${tv.id}");
+     });
+    soLuongThanhVien = realm.query<ThanhVienNhom>('nhom.maNhom == \$0', [widget.manhom]).length;
     receiverId = widget.receiverId_ToString.map((s) => ObjectId.fromHexString(s)).toList();
+
     final NguoiDung? nguoidung = realm.query<NguoiDung>('maNguoiDung == \$0', [widget.currentUserId]).firstOrNull;
+
     chatModel=ChatModel(
-        name: nguoidung?.hoTen ?? nguoidung?.tenDangNhap ?? 'Không rõ',
+        name: nhomChat.tenNhom,
         avatar: 'assets/images/meme.jpg',
         isGroup: true,
         time: '',
@@ -171,35 +186,6 @@ class _GrouppageState extends State<Grouppage> {
     );
   }
 
-  // void connect() {
-  //   socket = IO.io("http://${AppConfig.baseUrl}:5000", <String, dynamic>{
-  //     "transports": ["websocket"],
-  //     "autoConnect": true,
-  //   });
-  //   socket?.connect();
-  //   socket?.onConnect((data) {
-  //     socket?.emit("signin", widget.currentUserId.toString());
-  //     print("Connected");
-  //     // socket?.on("message", (msg) {
-  //     //   print(msg);
-  //     //   // setMessage("destination", msg["message"], msg["path"]);
-  //     //   setMessage(msg["sourceId"], msg["message"], msg["path"]);
-  //     //   ControllerNewMessage();
-  //     // });
-  //     socket?.on("message", (msg) {
-  //       final isMe = msg["sourceId"] == widget.currentUserId.toString();
-  //
-  //       setMessage(
-  //         isMe ? "source" : "destination",
-  //         msg["message"],
-  //         msg["path"],
-  //       );
-  //
-  //       ControllerNewMessage();
-  //     });
-  //   });
-  //   print(socket?.connected);
-  // }
   void _handleIncomingMessage(dynamic msg) {
     bool isMe = msg["sourceId"] == widget.currentUserId.toString();
 
@@ -215,19 +201,17 @@ class _GrouppageState extends State<Grouppage> {
   void sendMessage(String message, ObjectId sourceId, List<ObjectId> targetIds, String path) {
     if (widget.socket != null && widget.socket!.connected) {
       setMessage("source", message, path);
-
-      for (final receiverId in targetIds) {
-        widget.socket!.emit("message", {
-          "message": message,
-          "sourceId": sourceId.toString(),
-          "targetId": receiverId.toString(), // Gửi đúng từng người nhận
-          "path": path,
-        });
-      }
+      widget.socket!.emit("message", {
+        "message": message,
+        "sourceId": sourceId.toString(),
+        "targetIds": targetIds,
+        "path": path,
+      });
     } else {
       print("Socket not connected!");
     }
   }
+
   void setMessage(String type, String message, String path) {
     MessageModel messageModel = MessageModel(
       message: message,
@@ -479,7 +463,6 @@ class _GrouppageState extends State<Grouppage> {
   @override
   Widget build(BuildContext context) {
     print(widget.currentUserId);
-    // print(widget.receiverId);
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Color(0xFFD9E2ED),
@@ -503,7 +486,7 @@ class _GrouppageState extends State<Grouppage> {
               style: TextStyle(fontSize: 18, color: Colors.white),
             ),
             Text(
-              "Đang hoạt động",
+              "$soLuongThanhVien thành viên",
               style: TextStyle(fontSize: 14, color: Colors.white70),
             ),
           ],

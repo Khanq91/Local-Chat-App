@@ -32,9 +32,12 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
   List<String> selectedFriends = [];
   List<String> filteredFriends = [];
   List<User> danhSachUser = [];
+  late List<String> AddtoGroupID_ToString=[];
   File? groupAvatar;
   String? _assetAvatar;
   List<ObjectId> AddToGroupId = [];
+  late String NamePage="";
+  final Realm realm = RealmService().realm;
 
   void _pickImage() async {
     final picker = ImagePicker();
@@ -49,7 +52,6 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
 
   @override
   void initState() {
-    final Realm realm = RealmService().realm;
     super.initState();
     AddToGroupId.add(widget.currentUserId);
     List<KetBan> Ds_KetBan =
@@ -76,6 +78,19 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
             avatar: otherUser?.anhDaiDien ?? 'assets/images/default_avatar.jpg',
           );
         }).toList();
+
+  }
+  void CheckNameGroup(){
+    if(_groupNameController.text.trim().isNotEmpty){
+      NamePage=_groupNameController.text.trim();
+    }
+    else {
+      List<String> memberNames = selectedUsers.map((user) => user.name).toList();
+      NamePage = memberNames.take(3).join(", ");
+      if (selectedUsers.length > 3) {
+        NamePage += ", ${selectedUsers.length - 3} người khác";
+      }
+    }
   }
 
   void _showAvatarPicker(BuildContext context) {
@@ -460,19 +475,41 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
                     ),
                     FloatingActionButton(
                       onPressed: () {
-                      if(selectedUsers.length<2){
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Vui lòng chọn ít nhất 2 thành viên"))
-                        );
-                        return;
-                      }else{
-                        selectedUsers.forEach((user) {
-                          AddToGroupId.add(user.maNguoiDung);
-                          final List<String> AddtoGroupID_ToString = AddToGroupId.map((id) => id.toString()).toList();
-                          Navigator.push(context ,MaterialPageRoute(builder: (builder) => Grouppage( currentUserId: widget.currentUserId,receiverId_ToString:AddtoGroupID_ToString,socket: widget.socket,)));
+                        CheckNameGroup();
+                        if (selectedUsers.length < 2) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Vui lòng chọn ít nhất 2 thành viên"))
+                          );
+                          return;
+                        }
+                        NhomChat nhomChat = NhomChat(ObjectId(), NamePage, false, DateTime.now(),widget.currentUserId,);
+                        final receiverIds = selectedUsers.map((u) => u.maNguoiDung.toString()).toList();
+                        realm.write(() {realm.add(nhomChat);
+                          for (var user in selectedUsers) {
+                            final nguoiDung = realm.find<NguoiDung>(user.maNguoiDung);
+                            if (nguoiDung != null) {
+                              final isAdmin = user.maNguoiDung == widget.currentUserId;
+                              final tv = ThanhVienNhom(ObjectId(), isAdmin, DateTime.now());
+                              tv.nhom = nhomChat;
+                              tv.thanhVien = nguoiDung;
+                              realm.add(tv);
+                            }
+                          }
+                          final nguoiTao = realm.find<NguoiDung>(widget.currentUserId);
+                          if (nguoiTao != null) {
+                            final tvTao = ThanhVienNhom(ObjectId(), true, DateTime.now());
+                            tvTao.nhom = nhomChat;
+                            tvTao.thanhVien = nguoiTao;
+                            realm.add(tvTao);
+                          }
                         });
-                      }
-
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (builder) => Grouppage(currentUserId: widget.currentUserId, receiverId_ToString: receiverIds, socket: widget.socket, manhom: nhomChat.maNhom,
+                            ),
+                          ),
+                        );
                       },
                       mini: true,
                       backgroundColor: Colors.blue,

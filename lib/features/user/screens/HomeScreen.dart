@@ -221,8 +221,6 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-      // disconnectTimer?.cancel();
-      // disconnectTimer = Timer(Duration(seconds: 30), () {
         socketConnect.emit("capNhatTrangThai", {
           "userId": widget.currentUser.maNguoiDung,
           "trangThai": false,

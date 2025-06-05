@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final moiKetBan = KetBan(ObjectId(), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"), 'accepted', DateTime.now(), nguoiGui: nguoiGui, nguoiNhan: nguoiNhan,);
     RealmService().add<KetBan>(moiKetBan);
-    final moiKetBan1 = KetBan(ObjectId(), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d90"), 'accepted', DateTime.now(), nguoiGui: nguoiGui, nguoiNhan: nguoiNhan1,);
+    final moiKetBan1 = KetBan(ObjectId(), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d89"), ObjectId.fromHexString("60c72b2f9af1f34a2b6f7d91"), 'accepted', DateTime.now(), nguoiGui: nguoiGui, nguoiNhan: nguoiNhan1,);
     RealmService().add<KetBan>(moiKetBan);
     RealmService().add<KetBan>(moiKetBan1);
     var nguoiDung = realmService.realm.all<NguoiDung>();
