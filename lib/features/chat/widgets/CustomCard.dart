@@ -5,46 +5,87 @@ import 'package:realm/realm.dart';
 import '../../../data/model/chatmodel.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
-class Customcard extends StatelessWidget {
-  const Customcard({
+import '../../../data/realm/realm_models/models.dart';
+
+class Customcard extends StatefulWidget {
+  Customcard({
     Key? key,
     required this.chatModel,
     required this.sourchat,
     required this.currentUserId,
     required this.receiverId,
     required this.socket,
+    required this.currentMessage,
+    required this.onReturnFromChat,
   }) : super(key: key);
   final ChatModel chatModel;
   final ChatModel sourchat;
   final ObjectId currentUserId;
   final ObjectId receiverId;
   final IO.Socket socket;
+  final String currentMessage;
+  final VoidCallback onReturnFromChat;
+
+  @override
+  State<Customcard> createState() => _CustomcardState();
+}
+
+class _CustomcardState extends State<Customcard> {
+  late String displayedMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    displayedMessage = widget.currentMessage;
+  }
+
+  @override
+  void didUpdateWidget(covariant Customcard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentMessage != widget.currentMessage) {
+      setState(() {
+        displayedMessage = widget.currentMessage;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    print(currentUserId);
+    String formatTime(String input) {
+      try {
+        List<String> parts = input.split(' ');
+        if (parts.length >= 2) {
+          String time = parts[1];
+          return '${parts[0]} ${time.substring(0, 5)}';
+        }
+      } catch (_) {}
+      return input;
+    }
     return InkWell(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder:
-                (context) => Individualpage(
-                  chatModel: chatModel,
-                  sourchat: sourchat,
-                  currentUserId: currentUserId,
-                  receiverId: receiverId,
-                  socket: socket,
-                ),
+              (context) => Individualpage(
+                chatModel: widget.chatModel,
+                sourchat: widget.sourchat,
+                currentUserId: widget.currentUserId,
+                receiverId: widget.receiverId,
+                socket: widget.socket,
+              ),
           ),
         );
+        if(result == 'refresh'){
+          widget.onReturnFromChat();
+        }
       },
       child: ListTile(
         leading: Stack(
           children: [
             CircleAvatar(
               radius: 30,
-              backgroundImage: AssetImage(chatModel.avatar),
+              backgroundImage: AssetImage(widget.chatModel.avatar),
             ),
             Positioned(
               right: 0,
@@ -62,14 +103,14 @@ class Customcard extends StatelessWidget {
           ],
         ),
         title: Text(
-          chatModel.name,
+          widget.chatModel.name,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          chatModel.currentMessage,
+          displayedMessage,
           style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
-        trailing: Text(chatModel.time),
+        trailing: Text(formatTime(widget.chatModel.time.toString())),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nhan_tin_noi_bo/data/realm/realm_models/models.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/auth/screens/SignIn.dart';
 import 'package:realm/realm.dart';
@@ -6,7 +7,6 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../../../core/utils/connection.dart';
 import '../../../data/model/assets.dart';
 import '../../../data/model/chatmodel.dart';
-import '../../../data/realm/realm_models/models.dart';
 import '../../../data/realm/realm_services/realm.dart';
 import '../../chat/screens/CreateGroupPages.dart';
 import '../../chat/screens/IndividualPage.dart';
@@ -29,7 +29,7 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
   List<KetBan> danhSachKetBan = [];
   List<NguoiDung> danhSachBanBe = [];
   List<NguoiDung> filteredUsers = [];
-  late ObjectId currentUserId;
+
   @override
   void initState() {
     super.initState();
@@ -120,33 +120,33 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
           ),
         ),
         leading: IconButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => LoginScreen()),
-              // );
-            },
-            icon: Icon(Icons.arrow_back, color: Colors.white,)
+          onPressed: () {
+            Navigator.pop(context);
+            // Navigator.push(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => LoginScreen()),
+            // );
+          },
+          icon: Icon(Icons.arrow_back, color: Colors.white,)
         ),
         actions: [
           IconButton(
-              onPressed: (){
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AddFriendScreen(currentUser: widget.currentUser, socket: widget.socket,)),
-                );
-              },
-              icon: Icon(Icons.person_add_alt_1, color: Colors.white,)
+            onPressed: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AddFriendScreen(currentUser: widget.currentUser, socket: widget.socket,)),
+              );
+            },
+            icon: Icon(Icons.person_add_alt_1, color: Colors.white,)
           ),
           IconButton(
-              onPressed: (){
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => CreateGroupPages(currentUserId:currentUserId, socket: widget.socket,)),
-                );
-              },
-              icon: Icon(Icons.group_add, color: Colors.white,)
+            onPressed: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => CreateGroupPages(currentUserId: widget.currentUser.maNguoiDung, socket: widget.socket,)),
+              );
+            },
+            icon: Icon(Icons.group_add, color: Colors.white,)
           ),
         ],
       ),
@@ -154,9 +154,9 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
         padding: EdgeInsets.all(4),
         child: Column(
           children: [
-            isLoading
-                ? Padding(padding: EdgeInsets.only(top: 15), child: Center(child: CircularProgressIndicator(),),)
-                : Expanded(
+          isLoading
+            ? Padding(padding: EdgeInsets.only(top: 15), child: Center(child: CircularProgressIndicator(),),)
+            : Expanded(
               child: filteredUsers.isEmpty
                   ? Center(child: Text('Không có kết quả'))
                   : ListView.builder(
@@ -168,28 +168,28 @@ class _SearchGrouporfriendScreenState extends State<SearchGrouporfriendScreen> {
                     title: Text(user.hoTen ?? ""),
                     subtitle: Text(user.tenDangNhap ?? ""),
                     trailing: IconButton(
-                        onPressed: (){
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => Individualpage(
-                                chatModel: chats[index],
-                                sourchat: chats[index],
-                                currentUserId: widget.currentUser.maNguoiDung,
-                                receiverId: user.maNguoiDung,
-                                socket: widget.socket,
-                              )));
-                        },
-                        icon: Icon(Icons.chat_bubble_outline_rounded)),
+                      onPressed: (){
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => Individualpage(
+                          chatModel: chats[index],
+                          sourchat: chats[index],
+                          currentUserId: widget.currentUser.maNguoiDung,
+                          receiverId: user.maNguoiDung,
+                          socket: widget.socket,
+                        )));
+                      },
+                      icon: Icon(Icons.chat_bubble_outline_rounded)),
                     onTap: () {
                       Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => Individualpage(
-                            chatModel: chats[index],
-                            sourchat: chats[index],
-                            currentUserId: widget.currentUser.maNguoiDung,
-                            receiverId: user.maNguoiDung,
-                            socket: widget.socket,
-                          ),)
+                        context,
+                        MaterialPageRoute(builder: (context) => Individualpage(
+                          chatModel: chats[index],
+                          sourchat: chats[index],
+                          currentUserId: widget.currentUser.maNguoiDung,
+                          receiverId: user.maNguoiDung,
+                          socket: widget.socket,
+                        ),)
                       );
                     },
                   );

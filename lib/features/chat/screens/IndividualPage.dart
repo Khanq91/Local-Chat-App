@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:nhan_tin_noi_bo/features/user/screens/HomeScreen.dart';
 import 'package:path/path.dart' as path;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
@@ -14,8 +15,8 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:realm/realm.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../../../data/model/Message/MessageModel.dart';
+import '../../../data/model/assets.dart';
 import '../../../data/model/chatmodel.dart';
-
 import '../../../data/realm/realm_models/models.dart';
 import '../../../data/realm/realm_services/realm.dart';
 import '../widgets/Files/OwnFileCard.dart';
@@ -24,6 +25,7 @@ import '../widgets/ImagePicker/ImagePickerSheet.dart';
 import '../widgets/ImagePicker/OwnImageCard .dart';
 import '../widgets/ImagePicker/ReplyImageCard.dart';
 import '../widgets/Chats/ReplyCard.dart';
+import 'PinnedMessageScreen.dart';
 
 class Individualpage extends StatefulWidget {
   const Individualpage({
@@ -39,6 +41,7 @@ class Individualpage extends StatefulWidget {
   final ObjectId  currentUserId;
   final ObjectId  receiverId;
   final IO.Socket socket;
+
   @override
   State<Individualpage> createState() => _IndividualpageState();
 }
@@ -68,6 +71,7 @@ class _IndividualpageState extends State<Individualpage> {
   List<MessageModel> messages = [];
   final List<Map<String, dynamic>> _pendingMessages = [];
   List<AssetEntity> selectedImagesFromSheet = [];
+  List<MessageModel> get pinnedMessages => messages.where((m) => m.isPinned).toList();
 
   late RealmResults<TinNhanCaNhan> results;
   final realm = RealmService().realm;
@@ -80,6 +84,8 @@ class _IndividualpageState extends State<Individualpage> {
     widget.socket.on("message", _handleIncomingMessage);
     final NguoiDung? nguoiGui = realm.find<NguoiDung>(widget.currentUserId);
     final NguoiDung? nguoiNhan = realm.find<NguoiDung>(widget.receiverId);
+    List<MessageModel> pinnedMessages =
+    messages.where((m) => m.isPinned).toList();
 
     results = realm.query<TinNhanCaNhan>(
         '(maNguoiGui == \$0 AND maNguoiNhan == \$1) OR (maNguoiNhan == \$2 AND maNguoiGui == \$3) SORT(thoiGianGui ASC)',
@@ -476,7 +482,14 @@ class _IndividualpageState extends State<Individualpage> {
   @override
   Widget build(BuildContext context) {
     print(widget.currentUserId);
-    // print(widget.receiverId);
+
+    final List<MessageModel> pinnedMessages =
+    messages.where((m) => m.isPinned).toList();
+    final MessageModel? latestPinned =
+    pinnedMessages.isNotEmpty
+        ? messages.reversed.firstWhere((m) => m.isPinned)
+        : null;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Color(0xFFD9E2ED),
@@ -487,7 +500,7 @@ class _IndividualpageState extends State<Individualpage> {
             while (!_isSafeToExit) {
               await Future.delayed(Duration(milliseconds: 100));
             }
-            Navigator.pop(context);
+            Navigator.pop(context, 'refresh');
           },
           // onPressed: () => Navigator.pop(context),
           icon: Icon(Icons.arrow_back, color: Colors.white),
@@ -558,6 +571,62 @@ class _IndividualpageState extends State<Individualpage> {
         },
         child: Column(
           children: [
+            if (latestPinned != null)
+            Padding(
+              padding: EdgeInsets.all(6.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.pinnedChat,
+                ),
+                child: ListTile(
+                  title: Text(
+                    latestPinned.message,
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Container(
+                    padding: EdgeInsets.all(4.5),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16.0),
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (pinnedMessages.length > 1) ...[
+                          SizedBox(width: 4),
+                          Text(
+                            "+${pinnedMessages.length - 1}",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                        Icon(
+                          Icons.arrow_drop_down,
+                          color: Colors.grey,
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => PinnedMessagesScreen(
+                          pinnedMessages: pinnedMessages,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,

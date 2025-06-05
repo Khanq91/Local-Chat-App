@@ -4,7 +4,6 @@ import 'package:nhan_tin_noi_bo/features/user/screens/AddFriendScreen.dart';
 import 'package:nhan_tin_noi_bo/features/user/screens/SearchScreen.dart';
 import 'package:provider/provider.dart';
 import 'package:realm/realm.dart';
-import '../../../core/Services/UserStatus.dart';
 import '../../../core/utils/connection.dart';
 import '../../../core/utils/FriendsStatusProvider.dart';
 import '../../../data/model/assets.dart';
@@ -32,18 +31,42 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
   bool _isSocketConnected = false;
   late IO.Socket socketConnect;
 
-  @override
-  void initState() {
-    super.initState();
+  void updateChatsWithNewMessage(ObjectId sourceID, String newMessage) {
+    final ObjectId sourceId = sourceID;
+    final int index = chats.indexWhere((chat) => chat.id == sourceId);
+    if (index != -1) {
+      final updatedChat = ChatModel(
+        name: chats[index].name,
+        avatar: chats[index].avatar,
+        isGroup: chats[index].isGroup,
+        time: DateTime.now().toString(),
+        currentMessage: newMessage,
+        id: chats[index].id,
+      );
 
+      setState(() {
+        chats[index] = updatedChat;
+      });
+    } else {
+    }
+  }
+  void reloadData() {
+    // Load lại dữ liệu nếu cần
+    print("💥 HomeScreen đang được rebuild...");
+    loads();
+    setState(() {});
+  }
+
+  void loads() {
     final ObjectId currentUserId = widget.currentUser.maNguoiDung;
     final socketService = SocketService();
     final Realm realm = RealmService().realm;
-    socketConnect = socketService.connect(currentUserId);
     var danhSachKetBan = realm.all<KetBan>().where((ketBan) =>
     ketBan.trangThai == 'accepted' &&
         (ketBan.nguoiGui?.maNguoiDung == currentUserId || ketBan.nguoiNhan?.maNguoiDung == currentUserId)
     ).toList();
+
+    final ObjectId maNguoiNhan;
 
     var danhSachBanBe = danhSachKetBan.map((ketBan) {
       if (ketBan.nguoiGui?.maNguoiDung == currentUserId) {
@@ -53,29 +76,64 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
       }
     }).toList();
     print('Số lượng bạn bè đã kết bạn: ${danhSachBanBe.length}');
+
     chats = danhSachBanBe.map((nguoiDung) {
+      final tinNhanMoiNhat = realm
+          .all<TinNhanCaNhan>()
+          .query(
+          '((maNguoiGui == \$0 AND maNguoiNhan == \$1) OR (maNguoiGui == \$1 AND maNguoiNhan == \$0)) SORT(thoiGianGui DESC)',
+          [currentUserId, nguoiDung.maNguoiDung]
+      ).firstOrNull;
+      String noiDungHienThi = "";
+      if (tinNhanMoiNhat == null) {
+        noiDungHienThi = "";
+      } else {
+        noiDungHienThi = tinNhanMoiNhat.noiDung;
+      }
       return ChatModel(
         name: nguoiDung.hoTen!,
         avatar: "assets/images/meme.jpg", // Có thể thay bằng ảnh đại diện thật nếu có
         isGroup: false,
         time: "", // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
-        currentMessage: "", // Có thể cập nhật tin nhắn cuối cùng nếu cần
+        currentMessage: noiDungHienThi, // Có thể cập nhật tin nhắn cuối cùng nếu cần
         id: nguoiDung.maNguoiDung, // Có thể lấy id phù hợp nếu cần
       );
     }).toList();
+  }
 
-    socketConnect.onConnect((_) {
-      print("✅ Socket connected");
-      if (mounted) {
-        setState(() {
-          _isSocketConnected = true;
-        });
-      }
-      socketConnect.emit("capNhatTrangThai", {
-        "userId": widget.currentUser.maNguoiDung,
-        "trangThai": true,
-      });
+
+  @override
+  void initState() {
+    super.initState();
+    final ObjectId currentUserId = widget.currentUser.maNguoiDung;
+    final Realm realm = RealmService().realm;
+    // final socketService = SocketService();
+    // socketConnect = socketService.connect(currentUserId);
+    // final socketService = Provider.of<SocketService>(context, listen: false);
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    socketConnect = socketService.socket;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final socketService = Provider.of<SocketService>(context, listen: false);
+      // Có thể làm gì đó nếu cần, ví dụ in trạng thái kết nối:
+      print('SocketService đã khởi tạo: ${socketService.socket.connected}');
     });
+
+    loads();
+    if(_isSocketConnected == false) {
+      socketConnect.onConnect((_) {
+        print("✅ Socket connected");
+        if (mounted) {
+          setState(() {
+            _isSocketConnected = true;
+          });
+        }
+        socketConnect.emit("capNhatTrangThai", {
+          "userId": widget.currentUser.maNguoiDung,
+          "trangThai": true,
+        });
+      });
+    }
 
     socketConnect.onDisconnect((_) {
       print("❌ Socket disconnected");
@@ -88,6 +146,9 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
     socketConnect.on("message", (msg) {
       if (msg["targetId"] == currentUserId.toString()) {
         final sourceId = ObjectId.fromHexString(msg["sourceId"]);
+        String newMessage = msg["message"] ?? "";
+        updateChatsWithNewMessage(sourceId, newMessage);
+
         final nguoiGui = realm
             .all<NguoiDung>()
             .query("maNguoiDung == \$0", [sourceId])
@@ -211,6 +272,7 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
         chats: chats,
         currentUserId:currentUserId,
         socket: socketConnect,
+        onReturnFromChat: reloadData,
       ),
       FriendsListScreen(currentUser: widget.currentUser, socket: socketConnect)
     ];
