@@ -81,7 +81,7 @@ class _IndividualpageState extends State<Individualpage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    widget.socket.on("message", _handleIncomingMessage);
+    // widget.socket.on("message", _handleIncomingMessage);
     final NguoiDung? nguoiGui = realm.find<NguoiDung>(widget.currentUserId);
     final NguoiDung? nguoiNhan = realm.find<NguoiDung>(widget.receiverId);
     List<MessageModel> pinnedMessages =
@@ -128,7 +128,7 @@ class _IndividualpageState extends State<Individualpage> {
   }
   @override
   void dispose() {
-    widget.socket.off("message", _handleIncomingMessage);
+    // widget.socket.off("message", _handleIncomingMessage);
     Future.delayed(Duration(milliseconds: 200), () {
       _realmSubscription.cancel();
     });

@@ -77,28 +77,53 @@ class _DsTinnhanState extends State<Home_Screen> with WidgetsBindingObserver {
     }).toList();
     print('Số lượng bạn bè đã kết bạn: ${danhSachBanBe.length}');
 
-    chats = danhSachBanBe.map((nguoiDung) {
+    List<ChatModel> danhSachChatCaNhan = danhSachBanBe.map((nguoiDung) {
       final tinNhanMoiNhat = realm
           .all<TinNhanCaNhan>()
           .query(
-          '((maNguoiGui == \$0 AND maNguoiNhan == \$1) OR (maNguoiGui == \$1 AND maNguoiNhan == \$0)) SORT(thoiGianGui DESC)',
-          [currentUserId, nguoiDung.maNguoiDung]
-      ).firstOrNull;
-      String noiDungHienThi = "";
-      if (tinNhanMoiNhat == null) {
-        noiDungHienThi = "";
-      } else {
-        noiDungHienThi = tinNhanMoiNhat.noiDung;
-      }
+        '((maNguoiGui == \$0 AND maNguoiNhan == \$1) OR (maNguoiGui == \$1 AND maNguoiNhan == \$0)) SORT(thoiGianGui DESC)',
+        [currentUserId, nguoiDung.maNguoiDung],
+      )
+          .firstOrNull;
+
+      String noiDungHienThi = tinNhanMoiNhat?.noiDung ?? "";
+
       return ChatModel(
-        name: nguoiDung.hoTen!,
-        avatar: "assets/images/meme.jpg", // Có thể thay bằng ảnh đại diện thật nếu có
+        name: nguoiDung.hoTen ?? "Không rõ",
+        avatar: "assets/images/meme.jpg",
         isGroup: false,
-        time: "", // Có thể cập nhật thời gian tin nhắn cuối cùng nếu cần
-        currentMessage: noiDungHienThi, // Có thể cập nhật tin nhắn cuối cùng nếu cần
-        id: nguoiDung.maNguoiDung, // Có thể lấy id phù hợp nếu cần
+        time: tinNhanMoiNhat?.thoiGianGui.toString() ?? "",
+        currentMessage: noiDungHienThi,
+        id: nguoiDung.maNguoiDung,
       );
     }).toList();
+
+    var danhSachNhomThamGia = realm.all<ThanhVienNhom>()
+        .query('thanhVien.maNguoiDung == \$0', [currentUserId])
+        .map((tv) => tv.nhom!)
+        .toList();
+
+    List<ChatModel> danhSachChatNhom = danhSachNhomThamGia.map((nhom) {
+      final tinNhanList = nhom.danhSachTinNhan.toList()
+        ..sort((a, b) => b.thoiGianGui.compareTo(a.thoiGianGui));
+      final tinNhanMoiNhat = tinNhanList.isNotEmpty ? tinNhanList.first : null;
+
+      String noiDungHienThi = tinNhanMoiNhat?.noiDung ?? "";
+
+      return ChatModel(
+        name: nhom.tenNhom,
+        avatar: nhom.anhNhom ?? "assets/images/con-meo-3.jpg",
+        isGroup: true,
+        time: tinNhanMoiNhat?.thoiGianGui.toString() ?? "",
+        currentMessage: noiDungHienThi,
+        id: nhom.maNhom,
+      );
+    }).toList();
+
+
+    setState(() {
+      chats = [...danhSachChatCaNhan, ...danhSachChatNhom];
+    });
   }
 
 

@@ -473,7 +473,7 @@ class _GrouppageState extends State<Grouppage> {
             while (!_isSafeToExit) {
               await Future.delayed(Duration(milliseconds: 100));
             }
-            Navigator.pop(context);
+            Navigator.pop(context, 'refresh');
           },
           // onPressed: () => Navigator.pop(context),
           icon: Icon(Icons.arrow_back, color: Colors.white),

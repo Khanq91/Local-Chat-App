@@ -62,24 +62,24 @@ class _CreateGroupPagesState extends State<CreateGroupPages> {
       ketBan.trangThai == 'accepted' &&
           (ketBan.nguoiGui?.maNguoiDung == widget.currentUserId ||
               ketBan.nguoiNhan?.maNguoiDung == widget.currentUserId),
-    )
-        .toList();
+    ).toList();
     danhSachUser =
-        Ds_KetBan.map((ketBan) {
-          final isNguoiGui =
-              ketBan.nguoiGui?.maNguoiDung == widget.currentUserId;
-          final otherUser = isNguoiGui ? ketBan.nguoiNhan : ketBan.nguoiGui;
-          ObjectId id = isNguoiGui ? ketBan.maNguoiNhan : ketBan.maNguoiGui;
-          return User(
-            maNguoiDung: id,
-            name: otherUser?.hoTen ?? 'Không tên',
-            time:
-            '1 phút trước', // Tuỳ Khai muốn xử lý thời gian hay để cố định
-            avatar: otherUser?.anhDaiDien ?? 'assets/images/default_avatar.jpg',
-          );
-        }).toList();
-
+      Ds_KetBan.map((ketBan) {
+        final isNguoiGui =
+            ketBan.nguoiGui?.maNguoiDung == widget.currentUserId;
+        final otherUser = isNguoiGui ? ketBan.nguoiNhan : ketBan.nguoiGui;
+        ObjectId id = isNguoiGui ? ketBan.maNguoiNhan : ketBan.maNguoiGui;
+        return User(
+          maNguoiDung: id,
+          name: otherUser?.hoTen ?? 'Không tên',
+          time:
+          '1 phút trước', // Tuỳ Khai muốn xử lý thời gian hay để cố định
+          avatar: otherUser?.anhDaiDien ?? 'assets/images/con-meo-3.jpg',
+        );
+      }
+    ).toList();
   }
+
   void CheckNameGroup(){
     if(_groupNameController.text.trim().isNotEmpty){
       NamePage=_groupNameController.text.trim();
